@@ -54,8 +54,8 @@ type Report struct {
 	// Build is the bare version ("0.5.0-beta.16"), for comparing; Version is
 	// for people.
 	Build string `json:"build,omitempty"`
-	// Protocol..MinProtocol is the house protocol range this build speaks
-	//; zeros from builds before it was reported.
+	// Protocol..MinProtocol is the house protocol range this build speaks;
+	// zeros from builds before it was reported.
 	Protocol    int `json:"protocol,omitempty"`
 	MinProtocol int `json:"min_protocol,omitempty"`
 	// RunningSince is when the agent started on this build, and

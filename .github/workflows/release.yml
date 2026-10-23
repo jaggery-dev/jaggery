@@ -3,8 +3,8 @@ name: release
 # Every merge to beta publishes a prerelease tagged beta-<n>; every v* tag
 # (a prod promotion) publishes, or fills in, that version's release. Each
 # carries a build per platform, SHA256SUMS and release.json, which `jag update`
-# reads (internal/update), and release.sig: both signed with the release key
-#, without which no agent installs the build.
+# reads (internal/update), and release.sig: both signed with the release
+# key, without which no agent installs the build.
 
 on:
   push:

@@ -25,8 +25,8 @@ const Path = "/v1/reach"
 // Request names the ports to dial back, and the AI runtimes to look for.
 type Request struct {
 	Ports []int `json:"ports"`
-	// Runtimes asks the peer to try each runtime's default port over HTTP
-	//. Empty from agents older than the check.
+	// Runtimes asks the peer to try each runtime's default port over
+	// HTTP. Empty from agents older than the check.
 	Runtimes []airuntime.Kind `json:"runtimes,omitempty"`
 	// IPv6 are the caller's link-local IPv6 addresses (no zone): the peer
 	// dials Ports there too, through its own LAN interfaces.
