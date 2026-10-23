@@ -33,6 +33,13 @@ A contributor's PR merges into `beta` once GitHub's CI passes and a maintainer h
 
 **Releases come from `release.yml`:** a signed release must come from CI. CI runs once per pull request (documentation-only changes skip it).
 
+## Workflow safety
+Pull requests from forks and the text of issues and PRs are untrusted input (checked 2026-10-23, C4):
+- **CI runs on `pull_request`, never `pull_request_target`,** with `contents: read` and checkouts that don't keep the token. Fork PRs get no secrets, so the personal-material check runs only its built-in patterns there; maintainers run the full list with `scripts/ci-local.sh` before merging. A first-time contributor's run waits for a maintainer's approval.
+- **The signing key is only in `release.yml`'s `release` environment,** which only `beta`, `prod` and `v*` tags can read; pull requests can't.
+- **No workflow runs an AI agent** on issue or PR text.
+- **Actions are pinned to a commit,** with the version in a comment. Update them by hand, deliberately.
+
 ## Signing key setup (once, by a maintainer)
 **Done 2026-10-17:** the `release` environment, `JAGGERY_SIGNING_KEY` in it, and the spare in a maintainer's password manager; the public keys are `internal/update/keys/main.pem` and `spare.pem`.
 
