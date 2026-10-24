@@ -43,6 +43,8 @@ Pull requests from forks and the text of issues and PRs are untrusted input (che
 ## Signing key setup (once, by a maintainer)
 **Done 2026-10-17:** the `release` environment, `JAGGERY_SIGNING_KEY` in it, and the spare in a maintainer's password manager; the public keys are `internal/update/keys/main.pem` and `spare.pem`.
 
+**Rotated 2026-10-24,** when the repository moved to its public home: GitHub secrets can't be copied between repositories, and the first main key had only ever existed as a secret. As planned below, the spare became the main key (it signed `v0.6.0`), a new spare was made and kept offline, and the old main key is no longer trusted from `0.7.0-beta` builds on.
+
 Releases are signed in CI with an ed25519 key. The private keys never touch a disk or pass through anyone else's session. Run these on a machine with OpenSSL 1.1.1 or newer (macOS's LibreSSL may lack ed25519) and the `gh` CLI.
 
 1. **The protected environment.** Repo **Settings → Environments → New environment** `release`. Under "Deployment branches and tags" pick "Selected branches and tags" and add the branches `beta` and `prod` and the tag pattern `v*`. No required reviewers, so betas still publish on their own. Only runs from those refs can read the key.
