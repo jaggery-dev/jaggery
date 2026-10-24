@@ -1,0 +1,50 @@
+name: Something went wrong
+description: Jaggery did something you didn't expect, or a step didn't work.
+labels: [bug, needs triage]
+body:
+  - type: checkboxes
+    id: known
+    attributes:
+      label: Known issues
+      options:
+        - label: I checked [the known issues](https://github.com/jaggery-dev/jaggery/blob/beta/docs/known-issues.md), and this isn't one (or I'm adding something new to one).
+          required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you ran, what you expected, and what you got instead.
+    validations:
+      required: true
+  - type: textarea
+    id: machines
+    attributes:
+      label: Your house
+      description: The machines involved (OS, CPU or Pi model, GPU), the network (ISP router, mesh Wi-Fi, VLANs), and any AI runtimes or apps involved.
+      placeholder: "desktop: Debian 13, x86-64, no GPU; laptop: macOS 26, M2; mesh Wi-Fi"
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How you installed it
+      options:
+        - The install script (jaggery.dev/install)
+        - A download from Releases and install.sh
+        - Built from source
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: jag version and jag doctor
+      description: "From the machine with the problem: `jag version` and `jag doctor` (or `jag doctor --json`). It shows machine names and local addresses; remove anything you'd rather not share."
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log lines
+      description: "Around the problem: `journalctl -u jaggery` on Linux, `~/Library/Logs/jaggery.log` on macOS."
+      render: text

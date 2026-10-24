@@ -1,0 +1,879 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Jaggery</title>
+<style>
+  /* Tokens from the design system (tech brief §4). Fonts are named first so
+     a machine that has them installed uses them; nothing is fetched. */
+  :root {
+    --well:    oklch(0.16 0.012 55);
+    --bg:      oklch(0.18 0.012 55);
+    --pan:     oklch(0.22 0.014 55);
+    --pan-hover: oklch(0.25 0.016 55);
+    --pan-2:   oklch(0.28 0.016 55);
+    --line:    oklch(0.30 0.016 55);
+    --line-2:  oklch(0.25 0.014 55);
+    --ink:     oklch(0.94 0.02 80);
+    --ink-2:   oklch(0.80 0.025 75);
+    --ink-3:   oklch(0.66 0.025 70);
+
+    --gold:     oklch(0.80 0.12 75);
+    --gold-ink: oklch(0.88 0.10 75);
+    --indigo:   oklch(0.72 0.10 265);
+    --indigo-ink: oklch(0.80 0.09 265);
+    --ok:       oklch(0.78 0.11 145);
+    --risk:     oklch(0.72 0.14 30);
+    --risk-ink: oklch(0.86 0.10 30);
+
+    --gold-tint:   oklch(0.80 0.12 75 / 0.10);
+    --risk-tint:   oklch(0.72 0.14 30 / 0.12);
+    --indigo-tint: oklch(0.72 0.10 265 / 0.14);
+
+    --r-card: 14px; --r-control: 10px; --r-chip: 6px; --r-pill: 999px;
+    --font: "Alegreya Sans", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, monospace;
+    --page: 40px;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body {
+    margin: 0; min-height: 100vh;
+    font: 16px/1.5 var(--font);
+    background: var(--bg); color: var(--ink-2);
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--indigo-ink); text-underline-offset: 3px; }
+  a:hover { color: var(--ink); }
+  :focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; border-radius: 4px; }
+  code, .mono { font-family: var(--mono); }
+  h1, h2, h3 { color: var(--ink); margin: 0; }
+  [hidden] { display: none !important; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* Top bar */
+  .top { display: flex; align-items: center; gap: 28px; padding: 16px 32px; border-bottom: 1px solid var(--line-2); background: var(--bg); }
+  .brand { display: flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; }
+  .brand:hover { color: var(--ink); }
+  .block { background: var(--gold); border-radius: 46% 38% 44% 40% / 42% 46% 38% 48%; flex: none; }
+  .brand .block { width: 26px; height: 23px; }
+  .brand span { font-size: 23px; font-weight: 800; letter-spacing: -0.02em; }
+  .tabs { display: flex; gap: 4px; }
+  .tabs a { font-size: 16px; font-weight: 500; padding: 7px 14px; border-radius: var(--r-control); color: oklch(0.74 0.025 72); text-decoration: none; }
+  .tabs a:hover { color: var(--ink); }
+  .tabs a[aria-current="page"] { font-weight: 700; background: oklch(0.26 0.016 55); color: var(--ink); }
+  .top-right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; padding: 6px 12px 6px 10px; border-radius: var(--r-pill); background: oklch(0.80 0.12 75 / 0.14); color: var(--gold-ink); text-decoration: none; }
+  .pill:hover { color: var(--ink); }
+  .pill i { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); }
+  .pill.risk { background: var(--risk-tint); color: var(--risk-ink); }
+  .pill.risk i { background: var(--risk); }
+  .host { font-family: var(--mono); font-size: 13px; color: var(--ink-3); }
+
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 12px var(--page); background: var(--risk-tint); color: var(--risk-ink); font-size: 16px; }
+  .bar b { font-weight: 700; }
+
+  /* Page */
+  main:focus { outline: none; }
+  main { padding: 44px var(--page) 64px; display: flex; flex-direction: column; gap: 40px; max-width: 1360px; }
+  .hello h1 { font-size: 48px; line-height: 1.05; font-weight: 800; letter-spacing: -0.022em; }
+  .hello p { font-size: 20px; margin: 8px 0 0; }
+  .title h1 { font-size: 44px; line-height: 1.08; font-weight: 800; letter-spacing: -0.02em; }
+  .lead { font-size: 19px; line-height: 1.5; color: var(--ink-2); margin: 8px 0 0; max-width: 62ch; }
+  .sec-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  .sec-head h2 { font-size: 28px; line-height: 1.2; font-weight: 800; letter-spacing: -0.015em; }
+  .sec-head .sub { font-size: 16px; color: var(--ink-3); }
+  .sec-head .end { margin-left: auto; }
+  .label { font-family: var(--mono); font-size: 12px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+  .muted { color: var(--ink-3); }
+  .card { background: var(--pan); border-radius: var(--r-card); padding: 20px 22px; }
+  .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+  .empty { color: var(--ink-3); font-size: 17px; }
+
+  /* Status: always a dot and a word */
+  .status { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; }
+  .status i { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--ink-3); }
+  .status.on { color: var(--ok); } .status.on i { background: var(--ok); }
+  .status.asleep { color: oklch(0.72 0.09 75); } .status.asleep i { background: oklch(0.72 0.09 75); }
+  .status.off { color: var(--ink-3); }
+  .status.risk { color: var(--risk-ink); } .status.risk i { background: var(--risk); }
+
+  /* Badges and chips */
+  .badge { display: inline-block; font-size: 13px; font-weight: 500; line-height: 1.3; padding: 3px 9px; border-radius: var(--r-pill); background: var(--pan-2); color: var(--ink-2); white-space: nowrap; }
+  .badge.role { background: oklch(0.80 0.12 75 / 0.16); color: var(--gold-ink); }
+  .badge.press { background: var(--indigo-tint); color: var(--indigo-ink); }
+  .badge.risk { background: var(--risk-tint); color: var(--risk-ink); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font-family: var(--mono); font-size: 13px; padding: 2px 8px; border-radius: var(--r-chip); background: var(--pan-2); color: var(--ink-2); }
+  .chip.loaded { background: var(--gold); color: var(--bg); font-weight: 500; }
+  .chip.waiting { background: transparent; border: 1px dashed var(--gold); color: var(--gold-ink); }
+
+  /* Buttons and command wells */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font: 700 16px/1.2 var(--font); padding: 9px 16px; border-radius: var(--r-control); border: 0; cursor: pointer; text-decoration: none; background: var(--pan-2); color: var(--ink); }
+  .btn:hover { background: oklch(0.32 0.018 55); color: var(--ink); }
+  .btn.primary { background: var(--indigo); color: oklch(0.18 0.03 265); }
+  .btn.primary:hover { background: var(--indigo-ink); color: oklch(0.18 0.03 265); }
+  .btn.ghost { background: none; color: var(--indigo-ink); padding: 9px 4px; }
+  .btn.ghost:hover { color: var(--ink); }
+  .well { display: flex; align-items: center; gap: 12px; background: var(--well); border-radius: var(--r-control); padding: 10px 12px 10px 14px; min-width: 0; }
+  .well code { flex: 1; min-width: 0; font-size: 14.5px; color: var(--gold-ink); overflow-wrap: anywhere; }
+  .well .copy { font: 700 14px/1 var(--font); color: var(--indigo-ink); background: none; border: 0; padding: 8px 6px; cursor: pointer; border-radius: 6px; flex: none; }
+  .well .copy:hover { color: var(--ink); }
+  .well.big { padding: 18px 20px 18px 26px; border-radius: var(--r-card); }
+  .well.big code { font-size: 26px; }
+  .well-note { display: block; font-size: 15px; color: var(--ink-3); margin-top: 2px; font-family: var(--font); }
+  .cmd-label { font-size: 15px; color: var(--ink-3); margin: 14px 0 6px; }
+
+  /* Meter */
+  .meter-row { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; color: var(--ink-2); margin-bottom: 6px; }
+  .meter-row span:first-child { color: var(--ink-3); }
+  .track { height: 7px; border-radius: 4px; background: var(--pan-2); overflow: hidden; }
+  .fill { height: 100%; border-radius: 4px; background: var(--gold); }
+  .fill.full { background: var(--risk); }
+
+  /* "Needs you" cards */
+  .asks { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
+  .ask { border-radius: var(--r-card); padding: 20px 22px; display: flex; gap: 14px; background: var(--gold-tint); }
+  .ask.risk { background: var(--risk-tint); }
+  .ask.info { background: var(--pan); }
+  .mark { flex: none; width: 12px; height: 12px; margin-top: 7px; border-radius: 50%; border: 2px solid var(--gold); }
+  .risk > .mark, .risk .mark { border: 0; border-radius: 2px; background: var(--risk); transform: rotate(45deg) scale(0.85); }
+  .info > .mark, .info .mark { border: 0; background: var(--indigo); width: 10px; height: 10px; }
+  .ask-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  .ask h3 { font-size: 20px; font-weight: 700; line-height: 1.25; color: var(--gold-ink); }
+  .ask.risk h3 { color: var(--risk-ink); }
+  .ask.info h3 { color: var(--ink); }
+  .ask p { margin: 0; font-size: 16px; }
+  .ask .when { margin-left: auto; font-size: 14px; color: var(--ink-3); white-space: nowrap; }
+  .ask-head { display: flex; align-items: baseline; gap: 12px; }
+  .ask .well { margin-top: 10px; }
+  .ask-actions { display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; background: var(--well); border-radius: var(--r-control); padding: 14px 16px; margin-top: 10px; }
+  .facts div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .facts span:last-child { color: var(--ink); overflow-wrap: anywhere; }
+  .digest { font-family: var(--mono); font-size: 13.5px; color: var(--ink-2); margin-top: 6px; overflow-wrap: anywhere; }
+
+  /* App tiles */
+  .apps { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+  .app { display: flex; align-items: center; gap: 18px; padding: 20px; background: var(--pan); border-radius: var(--r-card); color: var(--ink-2); text-decoration: none; }
+  .app:hover { background: var(--pan-hover); color: var(--ink-2); }
+  .mono-block { width: 56px; height: 52px; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 800; border-radius: 46% 38% 44% 40% / 42% 46% 38% 48%; flex: none; }
+  .mono-block.small { width: 28px; height: 26px; font-size: 14px; }
+  .app-name { font-size: 21px; font-weight: 700; color: var(--ink); line-height: 1.2; }
+  .app-desc { font-size: 16px; line-height: 1.35; }
+  .app-on { font-size: 14px; color: var(--ink-3); margin-top: 2px; }
+
+  /* Machine columns */
+  .machines { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); align-items: start; }
+  .machine { background: var(--pan); border-radius: var(--r-card); }
+  .machine.self { box-shadow: inset 0 0 0 1.5px oklch(0.80 0.12 75 / .55); }
+  .machine.away { opacity: 0.62; }
+  .machine > div { padding: 16px 20px; border-top: 1px solid var(--line-2); }
+  .machine > div:first-child { border-top: 0; padding-top: 20px; }
+  .m-head { display: flex; align-items: baseline; gap: 8px; }
+  .m-name { font-size: 23px; font-weight: 800; color: var(--ink); letter-spacing: -0.01em; overflow-wrap: anywhere; }
+  .m-badges { margin-left: auto; display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+  .m-hw { font-size: 15px; color: var(--ink-3); margin-top: 6px; }
+  .runs { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  .runs li { display: flex; align-items: center; gap: 12px; font-weight: 700; color: var(--ink); }
+  .m-warn { color: var(--risk-ink); font-size: 15px; margin-top: 12px; }
+  .m-warn + .m-warn { margin-top: 6px; }
+
+  /* Tables */
+  .table-card { background: var(--pan); border-radius: var(--r-card); padding: 8px 22px 10px; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th { font-family: var(--mono); font-size: 12px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); text-align: left; padding: 14px 16px 12px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { font-size: 16px; padding: 12px 16px 12px 0; border-bottom: 1px solid var(--line-2); white-space: nowrap; vertical-align: baseline; }
+  tr:last-child td { border-bottom: 0; }
+  th.num, td.num { text-align: right; padding-right: 0; }
+  td.model { font-family: var(--mono); font-size: 14.5px; color: var(--gold-ink); }
+  td.who b { color: var(--ink); }
+  td.fail { color: var(--risk-ink); }
+
+  .tiles { display: grid; grid-template-columns: repeat(3, minmax(130px, 1fr)); gap: 10px; }
+  .tile { background: var(--pan); border-radius: var(--r-card); padding: 16px 16px 14px; }
+  .tile b { display: block; font-size: 28px; font-weight: 800; color: var(--ink); line-height: 1.1; }
+  .tile b.zero { color: var(--ok); }
+  .tile span { font-size: 15px; color: var(--ink-3); }
+  .split { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 32px; align-items: end; }
+
+  .side-layout { display: grid; grid-template-columns: minmax(0, 1fr) 464px; gap: 40px; align-items: start; }
+  .stack { display: flex; flex-direction: column; gap: 16px; }
+  details summary { cursor: pointer; color: var(--indigo-ink); }
+  details summary::marker { color: var(--ink-3); }
+  .history { list-style: none; padding: 0; margin: 12px 0 0; display: flex; flex-direction: column; gap: 8px; font-size: 15px; }
+  .history li { display: flex; gap: 12px; } .history time { color: var(--ink-3); min-width: 90px; }
+
+  /* Folders */
+  .folder h3 { font-size: 22px; font-weight: 800; }
+  .folder .on { font-size: 15px; color: var(--ink-3); margin-top: 8px; }
+  .folder .today { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 14px; }
+  .folder .use { color: var(--ink); margin-top: 4px; }
+  .folder .apps-used { font-size: 15px; color: var(--ink-3); }
+  .lend { background: var(--well); border-radius: var(--r-card); padding: 22px 24px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 24px; align-items: center; }
+  .lend h3 { font-size: 21px; font-weight: 700; }
+  .lend p { margin: 4px 0 0; font-size: 16px; }
+  .lend .well { background: var(--pan); }
+
+  /* Settings */
+  .settings { display: grid; grid-template-columns: 220px minmax(0, 760px); gap: 48px; align-items: start; }
+  .subnav { display: flex; flex-direction: column; gap: 2px; position: sticky; top: 16px; }
+  .subnav a { padding: 8px 12px; border-radius: var(--r-control); color: var(--ink-2); text-decoration: none; font-size: 16px; }
+  .subnav a:hover { background: var(--pan); color: var(--ink); }
+  .settings section { padding-bottom: 32px; margin-bottom: 32px; border-bottom: 1px solid var(--line-2); scroll-margin-top: 16px; }
+  .settings section:last-child { border-bottom: 0; }
+  .settings h2 { font-size: 28px; font-weight: 800; letter-spacing: -0.015em; margin-bottom: 8px; }
+  .settings p { margin: 0 0 12px; }
+  .cmd-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+
+  /* First run */
+  .first { max-width: 820px; margin: 24px auto 0; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+  .first .block { width: 88px; height: 80px; }
+  .first h1 { font-size: 48px; line-height: 1.05; font-weight: 800; letter-spacing: -0.022em; max-width: 20ch; }
+  .first .lead { margin: 0; max-width: 44ch; }
+  .first .well { width: 100%; text-align: left; }
+  .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; width: 100%; max-width: 690px; text-align: left; }
+  .steps div { background: var(--pan); border-radius: var(--r-card); padding: 18px; }
+  .steps .n { font-family: var(--mono); font-size: 13px; color: var(--gold); }
+  .steps b { display: block; color: var(--ink); margin-top: 4px; }
+  .steps span:last-child { font-size: 15px; color: var(--ink-3); }
+
+  .foot { padding: 0 var(--page) 40px; font-size: 14px; color: var(--ink-3); }
+
+  /* Phone: one column and a bottom tab bar (screen 2g) */
+  .tabbar { display: none; }
+  @media (max-width: 1100px) {
+    .side-layout, .split { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 720px) {
+    :root { --page: 20px; }
+    .top { padding: 14px var(--page); gap: 12px; }
+    .top .tabs, .host { display: none; }
+    main { padding: 24px var(--page) 112px; gap: 32px; }
+    .hello h1, .first h1 { font-size: 32px; }
+    .hello p { font-size: 17px; }
+    .title h1 { font-size: 32px; }
+    .lead { font-size: 17px; }
+    .sec-head h2 { font-size: 24px; }
+    .asks { grid-template-columns: minmax(0, 1fr); }
+    .ask-actions .btn { flex: 1; min-height: 44px; }
+    .apps { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .app { flex-direction: column; align-items: flex-start; gap: 14px; padding: 18px 16px; }
+    .app-desc, .app-on { display: none; }
+    .app-name { font-size: 18px; }
+    .machines { grid-template-columns: minmax(0, 1fr); }
+    .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .tile b { font-size: 24px; }
+    .lend, .settings { grid-template-columns: minmax(0, 1fr); }
+    .subnav { display: none; }
+    .steps { grid-template-columns: minmax(0, 1fr); }
+    .well.big code { font-size: 17px; }
+    .well .copy { min-height: 44px; }
+    .tabbar { display: grid; grid-template-columns: repeat(4, 1fr); position: fixed; left: 0; right: 0; bottom: 0; background: var(--bg); border-top: 1px solid var(--line-2); padding: 6px 0 calc(6px + env(safe-area-inset-bottom)); z-index: 10; }
+    .tabbar a { text-align: center; padding: 14px 0; font-size: 15px; color: var(--ink-3); text-decoration: none; }
+    .tabbar a[aria-current="page"] { color: var(--ink); font-weight: 700; }
+    .foot { padding-bottom: 100px; }
+  }
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="#/" aria-label="Jaggery home"><div class="block" aria-hidden="true"></div><span>jaggery</span></a>
+  <nav class="tabs" aria-label="Sections" data-tabs></nav>
+  <div class="top-right">
+    <a class="pill" id="pill" href="#/ai/approvals" hidden><i aria-hidden="true"></i><span></span></a>
+    <span class="host" id="host">jaggery.local</span>
+  </div>
+</header>
+<div class="bar" id="bar" role="alert" hidden></div>
+<main id="view" tabindex="-1"><p class="empty">Loading the house…</p></main>
+<footer class="foot" id="foot"></footer>
+<nav class="tabbar" aria-label="Sections" data-tabs></nav>
+
+<script>
+"use strict";
+// The house dashboard: one static page that reads GET /v1/house (every 5 s)
+// and GET /v1/house/activity (every 30 s) and draws it for everyone at home.
+// Nothing else is fetched. Ask-first actions (approving a model, changing
+// who can do what) stay at a terminal, so every fix here is a command to
+// copy, not a button that does it.
+
+const TABS = [["Home", "#/"], ["AI", "#/ai"], ["Folders", "#/folders"], ["Settings", "#/settings"]];
+const WORDS = ["No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve"];
+
+let snap = null;        // the last good /v1/house
+let activity = [];      // today's /v1/house/activity entries
+let activityOK = false;
+let lastOK = null;      // when /v1/house last answered
+let failing = false;
+
+// shq quotes a name for a command the person will paste into a shell: model
+// and file names come from runtimes and other machines, and must not be able
+// to add a command of their own.
+function shq(s) {
+  s = String(s ?? "");
+  return /^[A-Za-z0-9._:\/@+=-]+$/.test(s) ? s : "'" + s.replace(/'/g, "'\\''") + "'";
+}
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function word(n, lower) {
+  const w = n < WORDS.length ? WORDS[n] : String(n);
+  return lower ? w.toLowerCase() : w;
+}
+function plural(n, one, many) { return n === 1 ? one : many; }
+
+// Sizes people can picture: whole GB, or TB to one place below 10 TB. Exact
+// figures stay in `jag status`.
+function size(n) {
+  if (!n) return "0 GB";
+  if (n >= 1e12) { const t = n / 1e12; return (t < 10 ? Math.round(t * 10) / 10 : Math.round(t)) + " TB"; }
+  if (n >= 1e9) return Math.round(n / 1e9) + " GB";
+  return Math.max(1, Math.round(n / 1e6)) + " MB";
+}
+// Memory is sold in binary sizes: 32 GiB of RAM reads as "32 GB".
+function mem(n) { return n ? Math.round(n / 2 ** 30) + " GB" : "0 GB"; }
+function clock(t) { return new Date(t).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }); }
+function when(t) {
+  const d = new Date(t), now = new Date();
+  if (d.toDateString() === now.toDateString()) return "today " + clock(d);
+  if (now - d < 6 * 864e5) return d.toLocaleDateString("en-GB", { weekday: "short" }) + " " + clock(d);
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
+// A tile's colour: the catalog's hue, or one derived from the name so it
+// stays put between visits.
+function hue(app) {
+  if (app.hue) return app.hue;
+  let h = 0;
+  for (const c of app.name) h = (h * 31 + c.charCodeAt(0)) % 360;
+  return h;
+}
+function monogram(app, small) {
+  const h = hue(app);
+  return `<span class="mono-block${small ? " small" : ""}" aria-hidden="true" style="background:oklch(0.80 0.12 ${h} / 0.20);color:oklch(0.88 0.10 ${h})">${esc(app.name.trim()[0] || "?")}</span>`;
+}
+
+function well(cmd, note, big) {
+  return `<div class="well${big ? " big" : ""}"><code>${esc(cmd)}${note ? `<span class="well-note">${esc(note)}</span>` : ""}</code>` +
+    `<button class="copy" type="button" data-copy="${esc(cmd)}" aria-label="Copy ${esc(cmd)}">Copy</button></div>`;
+}
+
+// ---- The house, as people see it ----
+
+function machinesOf(s) {
+  const all = [s.self, ...(s.peers || [])].filter(m => m && m.machine_id);
+  const rank = m => m.self ? 0 : m.machine_id === s.name_holder ? 1 : on(m) ? 2 : 3;
+  return all.sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
+}
+function on(m) { return !!(m.self || m.reachable); }
+function inv(m) { return m.inventory || {}; }
+// Asleep is a laptop we can't reach; anything else unreachable is off.
+function state(m) { return on(m) ? "on" : inv(m).laptop ? "asleep" : "off"; }
+
+function blockedPorts(m) {
+  const ib = inv(m).inbound || {};
+  return (ib.checks || []).filter(c => !c.open)
+    .concat((ib.checks6 || []).filter(c => !c.open && c.port === 80).map(c => ({ ...c, v6: true })));
+}
+function updating(m) {
+  const u = inv(m).update;
+  return !!(u && u.available && !u.waiting && u.policy === "auto");
+}
+
+function statusOf(m) {
+  const st = state(m);
+  const extra = [];
+  if (m.incompatible) extra.push("needs a newer jag");
+  else if (on(m) && blockedPorts(m).some(c => c.port === 80)) extra.push("port 80 blocked");
+  else if (on(m) && updating(m)) extra.push("updating");
+  const base = m.self ? "This machine · on" : st === "on" ? "On" : st === "asleep" ? "Asleep" : "Off";
+  const cls = m.incompatible ? "risk" : st;
+  return `<span class="status ${cls}"><i aria-hidden="true"></i>${esc([base, ...extra].join(" · "))}</span>`;
+}
+
+function hardware(m) {
+  const i = inv(m);
+  const parts = [];
+  const gpus = i.gpus || [];
+  gpus.filter(g => !g.unified && g.model).forEach(g => parts.push(g.model + (g.memory_bytes ? " " + mem(g.memory_bytes) : "")));
+  const unified = gpus.some(g => g.unified);
+  if (!parts.length && i.cpu_count) parts.push(unified && i.cpu_model ? i.cpu_model : `${i.cpu_count} cores`);
+  if (i.memory_bytes) parts.push(mem(i.memory_bytes) + (unified ? " shared" : " memory"));
+  return parts.join(" · ");
+}
+
+function models(m) {
+  const out = [];
+  (inv(m).runtimes || []).forEach(rt => (rt.models || []).forEach(mo => out.push({ ...mo, runtime: rt.kind })));
+  return out;
+}
+
+// Everything a person should look at, newest risks first. tone: "wait" (a
+// decision), "risk" (something wrong) or "info" (worth knowing).
+function needs(ms) {
+  const out = [];
+  const events = [];
+  ms.forEach(m => (inv(m).model_events || []).forEach(e => events.push({ ...e, machine: m.name })));
+  const changedFor = (m, mo) => events.find(e => e.machine === m.name && e.name === mo.name && (e.kind === "changed" || e.risky) && (!mo.digest || !e.digest || e.digest === mo.digest));
+
+  ms.forEach(m => models(m).filter(mo => mo.pending).forEach(mo => {
+    const ev = changedFor(m, mo);
+    const facts = [
+      ["Size", [mo.parameters, mo.quantization].filter(Boolean).join(" · ") || (mo.size_bytes ? size(mo.size_bytes) : "unknown")],
+      ["Format", (mo.format || "unknown").toUpperCase()],
+      ["Fingerprint", mo.digest ? mo.digest.slice(0, 12) : "unknown"],
+      ["On", m.name],
+    ];
+    if (ev) {
+      out.push({
+        tone: "risk", at: ev.at, model: mo.name,
+        title: ev.kind === "changed" ? `${mo.name} changed on ${m.name}` : `${mo.name} on ${m.name} can run code when loaded`,
+        short: ev.kind === "changed" ? "Same name, different files. It waits for you again." : `Its ${mo.format || ""} files can run code. It waits for you.`,
+        body: (ev.kind === "changed" ? "Same name, different files. " : "") +
+          (ev.risky ? `Its ${ev.format || "new"} format can run code when loaded. Only keep it if you know where it came from.` : "ai.local won't use it until someone approves it again."),
+        digest: `${ev.runtime} · ${ev.format || "format unknown"} · ${(ev.digest || "").slice(0, 12)}${ev.prev_digest ? " (was " + ev.prev_digest.slice(0, 12) + ")" : ""}`,
+        cmdLabel: "If you added it, on any machine:", cmd: `jag models approve ${shq(mo.name)}`,
+      });
+    } else {
+      out.push({
+        tone: "wait", at: mo.first_seen, model: mo.name,
+        title: `${mo.name} is waiting for you`, home: "A new AI model is waiting for you",
+        short: `${mo.name} appeared on ${m.name}. Nobody can use it until you say yes.`,
+        body: `It appeared in ${mo.runtime} on ${m.name}. ai.local won't use it until someone approves it.`,
+        facts, cmdLabel: "To approve it, on any machine:", cmd: `jag models approve ${shq(mo.name)}`,
+      });
+    }
+  }));
+
+  // A risky model that is already being served: enforcement is off, or it
+  // was approved. Still worth a look.
+  events.filter(e => e.risky && e.kind !== "removed").forEach(e => {
+    if (out.some(o => o.model === e.name && o.tone === "risk")) return;
+    out.push({
+      tone: "risk", at: e.at, model: e.name,
+      title: `${e.name} on ${e.machine} can run code when loaded`,
+      short: `Its ${e.format} files can run code. Only keep it if you know where it came from.`,
+      body: `Its ${e.format} files can run code when loaded. Only keep it if you know where it came from.`,
+      digest: `${e.runtime} · ${e.format || "format unknown"} · ${(e.digest || "").slice(0, 12)}`,
+      cmdLabel: "Make every new model wait for approval:", cmd: "jag models enforce on",
+    });
+  });
+
+  ms.filter(on).forEach(m => {
+    blockedPorts(m).forEach(c => {
+      const web = c.port === 80;
+      out.push({
+        tone: "risk", health: true, at: (inv(m).inbound || {}).checked_at,
+        title: web ? `${m.name} can't show this page` : `${m.name}: port ${c.port} is blocked`,
+        healthTitle: `${m.name}: port ${c.port}${c.v6 ? " over IPv6" : ""} is blocked`,
+        short: web ? `Its firewall blocks port 80${c.v6 ? " over IPv6" : ""}.` + (snap && snap.name_holder && snap.name_holder !== m.machine_id ? " Another machine is covering." : "")
+          : `Its firewall stops the house reaching port ${c.port}.`,
+        body: web ? "It can't serve jaggery.local, so it can't take over the house's names." : `Other machines can't reach it on port ${c.port}.`,
+        cmdLabel: `On ${m.name}, run:`, cmd: c.fix || "jag doctor",
+      });
+    });
+    ((inv(m).inbound || {}).runtimes || []).filter(r => r.exposed).forEach(r => out.push({
+      tone: "risk", health: true,
+      title: `${r.kind} on ${m.name} is open to the whole network`,
+      short: "Anyone on the Wi-Fi can use, pull or delete its models without Jaggery.",
+      body: `Port ${r.port} answers every device on the network, so anyone can use, pull or delete its models without Jaggery.`,
+      cmdLabel: `On ${m.name}, run:`, cmd: r.fix || "jag doctor",
+    }));
+  });
+  // Two machines with one name: a device can name itself after one
+  // of yours and wait to be approved.
+  const named = {};
+  ms.forEach(m => (named[(m.name || "").toLowerCase()] = named[(m.name || "").toLowerCase()] || []).push(m));
+  Object.values(named).filter(g => g.length > 1).forEach(g => out.push({
+    tone: "risk", health: true,
+    title: `${word(g.length)} machines call themselves ${g[0].name}`,
+    short: "One may be a device pretending to be yours. Check the fingerprints before approving.",
+    body: "One may be a device pretending to be yours. Approve only the one whose fingerprint matches what jag status shows on that machine: " +
+      g.map(m => `${m.machine_id} ${m.self ? "(this machine)" : `at ${(m.addrs || [])[0] || "no address"} (${m.trust || "unknown"})`}, fingerprint ${m.fingerprint || "not proven yet"}`).join("; ") + ".",
+    cmdLabel: "To see them, and forget one that isn't yours:", cmd: "jag peers",
+  }));
+
+  // Something outside the house answers for the shared names.
+  ((snap && snap.name_claims) || []).forEach(c => out.push({
+    tone: "risk", health: true, at: c.last_seen,
+    title: `Something at ${c.addr} also answers for ${c.name}`,
+    short: c.machine ? `It's ${c.machine}, a Jaggery machine not approved here. It may get what's sent to ${c.name}.` : `It isn't a machine in the house, and it may get what's sent to ${c.name}.`,
+    body: `${c.machine ? `${c.machine}, a Jaggery machine not approved here,` : "A device that isn't a machine in the house"} answers for ${c.name}, so prompts, files and pages meant for the house may go to it. Find it and turn that off, or take it off the network. Until then, open machines by their own names for anything private.`,
+    cmdLabel: "To see what's answering, on any machine:", cmd: "jag doctor",
+  }));
+  ms.filter(m => m.incompatible).forEach(m => out.push({
+    tone: "risk", health: true,
+    title: `${m.name} needs a newer jag`,
+    short: "It speaks an older house protocol, so it gets no work until it updates.",
+    body: "It speaks an older house protocol, so the house gives it no work until it updates.",
+    cmdLabel: `On ${m.name}, run:`, cmd: "jag update",
+  }));
+
+  // Tools an app offered a model for the first time, grouped by request.
+  const groups = {};
+  ms.forEach(m => (inv(m).tool_events || []).forEach(e => {
+    const k = [m.name, e.app, e.model, e.device, String(e.at).slice(0, 16)].join("|");
+    (groups[k] = groups[k] || { ...e, machine: m.name, tools: [] }).tools.push(e.tool);
+  }));
+  Object.values(groups).forEach(g => out.push({
+    tone: "info", at: g.at,
+    title: g.tools.length === 1 ? `${g.app || "An app"} gave ${g.model} a new tool` : `${g.app || "An app"} gave ${g.model} ${word(g.tools.length, true)} new tools`,
+    body: `From ${g.device || "an unknown device"}, through ${g.machine}: ${g.tools.join(", ")}.`,
+  }));
+
+  const order = { wait: 0, risk: 1, info: 2 };
+  return out.sort((a, b) => order[a.tone] - order[b.tone] || new Date(b.at || 0) - new Date(a.at || 0));
+}
+function needsYou(list) { return list.filter(n => n.tone !== "info"); }
+
+// ---- Views ----
+
+function greeting() {
+  const h = new Date().getHours();
+  return h < 5 ? "Good evening." : h < 12 ? "Good morning." : h < 18 ? "Good afternoon." : "Good evening.";
+}
+function houseSentence(ms) {
+  const n = ms.length, up = ms.filter(on).length;
+  const away = ms.filter(m => !on(m)).map(m => `${m.name} is ${state(m)}`);
+  const head = `${word(n)} ${plural(n, "machine", "machines")}.`;
+  if (!away.length) return `${head} ${n === 2 ? "Both" : "All " + word(n, true)} are on.`;
+  if (up === 0) return `${head} None can be reached.`;
+  const list = away.length <= 2 ? away.join(" and ") : `${word(away.length)} are asleep or off`;
+  return `${head} ${word(up)} ${plural(up, "is", "are")} on; ${list}.`;
+}
+
+function askCard(n, detailed) {
+  const head = detailed
+    ? `<div class="ask-head"><h3>${esc(n.title)}</h3>${n.at ? `<span class="when">${esc(when(n.at))}</span>` : ""}</div>`
+    : `<h3>${esc(n.home || n.title)}</h3>`;
+  let body = `<p>${esc(detailed ? n.body : n.short || n.body)}</p>`;
+  if (detailed && n.facts) body += `<div class="facts">${n.facts.map(([k, v]) => `<div><span class="label">${esc(k)}</span><span>${esc(v)}</span></div>`).join("")}</div>`;
+  if (detailed && n.digest) body += `<div class="digest">${esc(n.digest)}</div>`;
+  if (n.cmd) body += detailed ? `<div class="cmd-label">${esc(n.cmdLabel)}</div>${well(n.cmd)}` : `${well(n.cmd)}`;
+  if (!detailed) body += `<div class="ask-actions"><a class="btn ghost" href="#/ai/approvals">Look first</a></div>`;
+  return `<article class="ask ${n.tone}"><span class="mark" aria-hidden="true"></span><div class="ask-body">${body ? head + body : head}</div></article>`;
+}
+
+// appsOf lists every machine's apps. A link someone added (jag apps add
+// --url) opens as it is, but only http and https: anything else could run
+// code in this page. A named app (jag apps name) opens at its name.
+function appsOf(ms) {
+  const list = [];
+  ms.filter(on).forEach(m => (inv(m).apps || []).forEach(a => {
+    if (a.url && !/^https?:\/\//i.test(a.url)) return;
+    const named = !a.url && /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/.test(a.local_name || "");
+    const url = a.url || (named ? `http://${a.local_name}.local${a.path || ""}` : `http://${m.name.toLowerCase()}.local:${a.port}${a.path || ""}`);
+    list.push({ ...a, machine: m.name, link: !!a.url, named, url });
+  }));
+  return list;
+}
+
+function homeView(ms) {
+  if (ms.length <= 1) return firstRunView(ms[0]);
+  const list = needsYou(needs(ms));
+  const wrong = list.filter(n => n.tone === "risk").length;
+  const headline = !failing && !wrong ? "The house is well." : wrong ? `${word(wrong)} ${plural(wrong, "thing needs", "things need")} a look.` : "";
+  const shown = list.slice(0, 2);
+  const more = list.length - shown.length;
+  const asks = shown.length ? `<section aria-label="Needs you"><div class="asks">${shown.map(n => askCard(n, false)).join("")}</div>
+    ${more ? `<p style="margin:12px 0 0"><a href="#/ai/approvals">${word(more)} more ${plural(more, "thing needs", "things need")} you</a></p>` : ""}</section>` : "";
+
+  const apps = appsOf(ms);
+  const appsHtml = apps.length
+    ? `<div class="apps">${apps.map(a => `<a class="app" href="${esc(a.url)}" target="_blank" rel="noopener">${monogram(a)}<div>
+        <div class="app-name">${esc(a.name)}</div><div class="app-desc">${esc(a.description)}</div><div class="app-on">${a.link ? "link added on" : "on"} ${esc(a.machine)}${a.named ? ` · ${esc(a.local_name)}.local` : ""}</div></div></a>`).join("")}</div>`
+    : `<p class="empty">No apps found yet. Jaggery looks for apps like Jellyfin, Immich and Home Assistant on every machine that's on. Add others with <code>jag apps add</code>.</p>`;
+
+  return `<div class="hello"><h1>${esc(greeting())}${headline ? " " + esc(headline) : ""}</h1><p>${esc(houseSentence(ms))}</p></div>
+    ${asks}
+    <section><div class="sec-head"><h2>Apps</h2><span class="sub">open from any phone or laptop at home</span></div>${appsHtml}</section>
+    <section><div class="sec-head"><h2>Machines</h2><a class="end" href="#/settings/machines">Add a machine</a></div>
+      <div class="machines">${ms.map(machineCard).join("")}</div></section>`;
+}
+
+function machineCard(m) {
+  const i = inv(m);
+  const badges = [];
+  if (m.machine_id === snap.name_holder) badges.push(`<span class="badge role" title="Answers for jaggery.local and ai.local">Names</span>`);
+  if (i.role) badges.push(`<span class="badge role">${esc(i.role === "ai" ? "AI" : i.role[0].toUpperCase() + i.role.slice(1))}</span>`);
+  if (i.laptop) badges.push(`<span class="badge">Laptop</span>`);
+  if (m.incompatible) badges.push(`<span class="badge risk">Needs a newer jag</span>`);
+  else if (i.update && i.update.available && !updating(m)) badges.push(`<span class="badge press" title="${esc(i.update.available)}">Update ready</span>`);
+
+  const apps = on(m) ? (i.apps || []).filter(a => !a.url) : [];
+  const runs = apps.length ? `<ul class="runs">${apps.map(a => `<li>${monogram(a, true)}${esc(a.name)}</li>`).join("")}</ul>`
+    : `<div class="muted" style="margin-top:6px">No apps</div>`;
+  const ms = models(m);
+  const chips = ms.map(mo => mo.pending ? `<span class="chip waiting" title="Waiting for approval">${esc(mo.name)} · waiting</span>`
+    : mo.loaded ? `<span class="chip loaded" title="Loaded">${esc(mo.name)} ●</span>` : `<span class="chip">${esc(mo.name)}</span>`).join("");
+
+  let disk = "";
+  if (i.disk_total_bytes) {
+    const pct = Math.round((1 - i.disk_free_bytes / i.disk_total_bytes) * 100);
+    disk = `<div><div class="meter-row"><span>Disk</span><span>${size(i.disk_free_bytes)} free of ${size(i.disk_total_bytes)}</span></div>
+      <div class="track" role="meter" aria-label="Disk used" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><div class="fill${pct > 90 ? " full" : ""}" style="width:${pct}%"></div></div>`;
+    (i.gpus || []).filter(g => g.memory_bytes && g.free_bytes != null && !g.unified).forEach(g => {
+      const gp = Math.round((1 - g.free_bytes / g.memory_bytes) * 100);
+      disk += `<div class="meter-row" style="margin-top:12px"><span>GPU memory</span><span>${mem(g.free_bytes)} free of ${mem(g.memory_bytes)}</span></div>
+        <div class="track" role="meter" aria-label="GPU memory used" aria-valuenow="${gp}" aria-valuemin="0" aria-valuemax="100"><div class="fill${gp > 90 ? " full" : ""}" style="width:${gp}%"></div></div>`;
+    });
+    if (on(m)) {
+      blockedPorts(m).forEach(c => disk += `<div class="m-warn">Port ${c.port}${c.v6 ? " over IPv6" : ""} is blocked: ${c.port === 80 ? "it can't serve jaggery.local." : "the house can't reach it."} <a href="#/ai/approvals">How to fix</a></div>`);
+      ((i.inbound || {}).runtimes || []).filter(r => r.exposed).forEach(r => disk += `<div class="m-warn">${esc(r.kind)} is open to the whole network. <a href="#/ai/approvals">How to fix</a></div>`);
+    }
+    disk += `</div>`;
+  }
+
+  return `<article class="machine${m.self ? " self" : ""}${on(m) ? "" : " away"}" aria-label="${esc(m.name)}">
+    <div><div class="m-head"><span class="m-name">${esc(m.name)}</span><span class="m-badges">${badges.join("")}</span></div>
+      <div style="margin-top:6px">${statusOf(m)}</div>${hardware(m) ? `<div class="m-hw">${esc(hardware(m))}</div>` : ""}</div>
+    <div><span class="label">Runs</span>${runs}</div>
+    <div><span class="label">AI models</span>${chips ? `<div class="chips" style="margin-top:8px">${chips}</div>` : `<div class="muted" style="margin-top:6px">${(i.runtimes || []).length ? "No models" : "No AI runtime"}</div>`}</div>
+    ${disk}
+  </article>`;
+}
+
+function aiView(ms) {
+  const devices = new Set(activity.map(e => e.user ? e.user + "@" + e.device : e.device));
+  const tiles = [
+    [activityOK ? activity.length : "–", plural(activity.length, "request today", "requests today")],
+    [activityOK ? devices.size : "–", plural(devices.size, "device asked", "devices asked")],
+  ];
+  if (snap.outbound_today != null) tiles.push([snap.outbound_today, "left the house"]);
+
+  const rows = [];
+  ms.forEach(m => models(m).forEach(mo => {
+    const used = activity.filter(e => e.model === mo.name && e.status >= 200 && e.status < 300 && (!e.served_by || e.served_by === m.name)).length;
+    const st = !on(m) ? ["off", state(m) === "asleep" ? "Asleep" : "Off"] : mo.pending ? ["asleep", "Waiting for you"] : mo.loaded ? ["on", "Loaded"] : ["off", "Ready"];
+    rows.push(`<tr><td class="model">${esc(mo.name)}</td><td>${esc(m.name)}</td><td>${esc(mo.runtime)}</td>
+      <td><span class="status ${st[0]}"><i aria-hidden="true"></i>${st[1]}</span></td><td class="num">${used || "–"}</td></tr>`);
+  }));
+  const modelsHtml = rows.length
+    ? `<div class="table-card"><table><thead><tr><th>Model</th><th>Lives on</th><th>Runtime</th><th>State</th><th class="num">Used today</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>`
+    : `<div class="card"><p class="empty" style="margin:0">No AI runtime found. Install Ollama, LM Studio or llama.cpp on any machine and its models appear here.</p></div>`;
+
+  const asked = activity.slice(0, 40).map(e => {
+    const ok = e.status >= 200 && e.status < 300;
+    const who = `<b>${esc(e.user ? e.user + " on " + e.device : e.device)}</b>${e.app ? " in " + esc(e.app) : ""}`;
+    const called = (e.tool_calls || []).length ? ` · called ${esc(e.tool_calls.join(", "))}` : "";
+    const answer = ok ? esc(e.served_by || "") + called : `Not answered${e.status === 403 ? ": waiting for approval" : ` (${e.status})`}`;
+    return `<tr><td class="muted">${esc(clock(e.at))}</td><td class="who">${who}</td><td class="model">${esc(e.model)}</td>
+      <td class="${ok ? "" : "fail"}">${answer}</td><td class="num">${ok ? (e.duration_ms / 1000).toFixed(1) + " s" : "–"}</td></tr>`;
+  }).join("");
+  const askedHtml = !activityOK ? `<p class="empty">Activity isn't available right now.</p>`
+    : asked ? `<div class="table-card"><table><thead><tr><th>Time</th><th>Who</th><th>Model</th><th>Answered by</th><th class="num">Took</th></tr></thead><tbody>${asked}</tbody></table></div>`
+    : `<p class="empty">No AI requests through Jaggery yet today.</p>`;
+
+  return `<div class="split"><div class="title"><h1>AI in the house</h1>
+      <p class="lead">One address for every model. Each request goes to the machine that already has the model loaded, or ran it fastest.</p></div>
+      <div class="tiles" style="grid-template-columns:repeat(${tiles.length},minmax(110px,1fr))">${tiles.map(([n, l]) => `<div class="tile"><b class="${n === 0 && l === "left the house" ? "zero" : ""}">${esc(n)}</b><span>${esc(l)}</span></div>`).join("")}</div></div>
+    <section class="grid">${well("http://ai.local/v1", "Every AI model in the house, for any OpenAI-compatible app")}${well("http://ai.local/mcp", "Shared folders, for agent apps")}</section>
+    <section><div class="sec-head"><h2>Models</h2><a class="end" href="#/ai/approvals">Approvals and alerts</a></div>${modelsHtml}</section>
+    <section><div class="sec-head"><h2>Who asked what</h2><span class="sub">Times, apps and models only. Jaggery never keeps what was said.</span></div>${askedHtml}</section>`;
+}
+
+function approvalsView(ms) {
+  const list = needs(ms);
+  const main = list.filter(n => !n.health);
+  const health = list.filter(n => n.health);
+  const handled = [];
+  ms.forEach(m => (inv(m).model_events || []).filter(e => !e.risky && e.kind !== "changed").forEach(e => handled.push({ ...e, machine: m.name })));
+  handled.sort((a, b) => new Date(b.at) - new Date(a.at));
+
+  const updates = ms.filter(m => inv(m).version);
+  const versions = {};
+  updates.forEach(m => (versions[inv(m).version] = versions[inv(m).version] || []).push(m.name));
+  const installing = ms.filter(m => on(m) && updating(m)).map(m => m.name);
+  const failed = ms.filter(m => inv(m).update && inv(m).update.error);
+  const updLine = Object.entries(versions).map(([v, names]) => `${v} is on ${names.join(", ")}.`).join(" ") +
+    (installing.length ? ` ${installing.join(", ")} ${plural(installing.length, "is", "are")} installing an update.` : "");
+
+  return `<div class="side-layout"><div class="stack">
+      <div class="title" style="margin-bottom:8px"><h1>Needs you</h1><p class="lead">New models and new powers for models wait here until a person decides.</p></div>
+      ${main.length ? main.map(n => askCard(n, true)).join("") : `<p class="empty">Nothing needs you. New models and tools will wait here for a person.</p>`}
+      ${handled.length ? `<details><summary>Earlier this week: ${handled.length} handled</summary><ul class="history">${handled.slice(0, 30).map(e =>
+        `<li><time>${esc(when(e.at))}</time><span>${e.kind === "new" ? "New model" : "Removed:"} <code>${esc(e.name)}</code> on ${esc(e.machine)}</span></li>`).join("")}</ul></details>` : ""}
+    </div>
+    <aside class="stack" aria-label="Machine health">
+      <span class="label" style="margin-top:12px">Machine health</span>
+      ${health.length ? health.map(n => `<article class="card ask risk" style="display:block"><h3>${esc(n.healthTitle || n.title)}</h3>
+        <p style="margin:8px 0 0">${esc(n.body)} ${esc(n.cmdLabel)}</p><div style="margin-top:10px">${well(n.cmd)}</div></article>`).join("")
+        : `<div class="card"><span class="status on"><i aria-hidden="true"></i>Every machine can reach every other.</span></div>`}
+      <article class="card"><h3 style="font-size:20px">Updates</h3><p style="margin:8px 0 0">${esc(updLine || "No versions reported yet.")}</p>
+        ${failed.map(m => `<p class="m-warn">${esc(m.name)} couldn't check for updates. On ${esc(m.name)}, run:</p>${well("jag update --check")}`).join("")}</article>
+    </aside></div>`;
+}
+
+function useText(u) {
+  if (!u) return "";
+  const n = (k, one, many) => u[k] ? `${u[k]} ${plural(u[k], one, many)}` : "";
+  return [n("reads", "read", "reads"), n("writes", "change", "changes"), n("deletes", "delete", "deletes"),
+    n("searches", "search", "searches"), n("lists", "folder listed", "folders listed"), n("refused", "refused", "refused")].filter(Boolean).join(", ");
+}
+function foldersView(ms) {
+  const list = [];
+  ms.forEach(m => (inv(m).shares || []).forEach(s => list.push({ ...s, machine: m, })));
+  const cards = list.map(s => {
+    const used = useText(s.use);
+    return `<article class="card folder"><div class="m-head"><h3>${esc(s.name)}</h3><span class="m-badges">${s.writable ? `<span class="badge role">Read and change</span>` : `<span class="badge">Read only</span>`}</span></div>
+      <div class="on">on ${esc(s.machine.name)}${on(s.machine) ? "" : ` (${state(s.machine)})`}</div>
+      <div class="today"><span class="label">Today</span><div class="use">${esc(used || "Not used today")}</div>
+      ${s.use && (s.use.apps || []).length ? `<div class="apps-used">${esc(s.use.apps.join(", "))}</div>` : ""}</div></article>`;
+  }).join("");
+  return `<div class="title"><h1>Folders lent to AI</h1><p class="lead">Models and agents can read these, and change them only where you allowed it. Every access is logged on the machine that holds the folder.</p></div>
+    ${cards ? `<section class="grid">${cards}</section>` : `<p class="empty">No folders lent yet.</p>`}
+    <section class="lend"><div><h3>Lend ${list.length ? "another" : "a"} folder</h3><p>Run this on the machine that has it. Add <code>--writable</code> only if agents should change files.</p></div>
+      ${well("jag share add ~/Documents/Recipes --name recipes")}</section>`;
+}
+
+function settingsView(ms) {
+  const self = snap.self;
+  const pol = { auto: "Automatic", notify: "Ask me first", off: "Off" };
+  const rows = ms.filter(m => inv(m).update || inv(m).version).map(m => {
+    const u = inv(m).update || {};
+    return `<tr><td>${esc(m.name)}</td><td>${esc(pol[u.policy] || "Unknown")}</td><td>${esc(u.channel || "")}</td><td class="mono" style="font-size:14px">${esc(inv(m).version || "")}</td></tr>`;
+  }).join("");
+  const others = ms.filter(m => !m.self);
+  const forget = others.length ? others[others.length - 1] : null;
+  return `<div class="settings">
+    <nav class="subnav" aria-label="Settings"><a href="#/settings/updates">Updates</a><a href="#/settings/machines">Machines</a><a href="#/settings/hosted">Hosted models</a><a href="#/settings/about">About</a></nav>
+    <div>
+      <section id="s-updates"><h2>Updates</h2>
+        <p>Updates roll out one machine at a time and undo themselves if a build won't start. Each machine checks GitHub for a new release every 30 minutes. That's the only thing Jaggery itself sends out.</p>
+        ${rows ? `<div class="table-card" style="margin-bottom:16px"><table><thead><tr><th>Machine</th><th>Updates</th><th>Channel</th><th>Version</th></tr></thead><tbody>${rows}</tbody></table></div>` : ""}
+        <p class="muted">To change it, run on that machine (auto, notify or off):</p>${well("jag update --policy auto")}</section>
+      <section id="s-machines"><h2>Changes that stay at a keyboard</h2>
+        <p>Adding or forgetting a machine, approving models and letting agents write to folders change who can do what, so they're commands, not buttons.</p>
+        <div class="cmd-grid">${well("jag invite", "Add a machine: then jag join <code> on it")}${well(forget ? `jag forget ${forget.machine_id.slice(0, 8)}` : "jag forget <id>", forget ? `Remove ${forget.name}` : "Remove a machine")}
+          ${well("jag models approve <name>", "Let ai.local serve a model")}${well("jag doctor", "Check this machine and its network")}</div></section>
+      <section id="s-hosted"><h2>Hosted models</h2>
+        <p>Nothing goes to a company's AI unless someone adds a provider, with a spending cap, in <code>providers.json</code> on the machine that holds the key. Every request is kept word for word.</p>
+        ${well("jag outbound", "See what left the house today")}</section>
+      <section id="s-about"><h2>About</h2>
+        <p>This page is served by <b style="color:var(--ink)">${esc(self.name)}</b>${inv(self).version ? `, running jag <code>${esc(inv(self).version)}</code>` : ""}. It asks only this machine's agent for the house, and nothing on it leaves the house.</p></section>
+    </div></div>`;
+}
+
+function firstRunView(self) {
+  const name = self ? self.name : "This machine";
+  return `<div class="first"><div class="block" aria-hidden="true"></div>
+    <h1>Your house has one machine so far.</h1>
+    <p class="lead">${esc(name)} is running Jaggery. Install it on the next computer, then run this here to get a one-time code:</p>
+    ${well("jag invite", null, true)}
+    <p class="muted" style="margin:0">On the new computer, type <code>jag join &lt;code&gt;</code>. The code works once.</p>
+    <div class="steps"><div><span class="n">1</span><b>Download jag</b><span>Linux, Pi or Mac</span></div>
+      <div><span class="n">2</span><b>Join with the code</b><span>Both machines trust each other</span></div>
+      <div><span class="n">3</span><b>It shows up here</b><span>Usually within a minute</span></div></div></div>`;
+}
+
+// ---- Routing and drawing ----
+
+function route() {
+  const h = location.hash.replace(/^#/, "") || "/";
+  if (h.startsWith("/ai/approvals")) return { tab: "AI", view: approvalsView };
+  if (h.startsWith("/ai")) return { tab: "AI", view: aiView };
+  if (h.startsWith("/folders")) return { tab: "Folders", view: foldersView };
+  if (h.startsWith("/settings")) return { tab: "Settings", view: settingsView, anchor: h.split("/")[2] };
+  return { tab: "Home", view: homeView };
+}
+
+let drawn = "";
+function draw(navigated) {
+  const r = route();
+  const tabs = TABS.map(([label, href]) => `<a href="${href}"${label === r.tab ? ' aria-current="page"' : ""}>${label}</a>`).join("");
+  document.querySelectorAll("[data-tabs]").forEach(nav => { if (nav.innerHTML !== tabs) nav.innerHTML = tabs; });
+  if (!snap) return;
+  const ms = machinesOf(snap);
+  const list = needsYou(needs(ms));
+  const pill = document.getElementById("pill");
+  pill.hidden = !list.length;
+  pill.classList.toggle("risk", list.some(n => n.tone === "risk"));
+  pill.querySelector("span").textContent = `${word(list.length)} ${plural(list.length, "thing needs", "things need")} you`;
+  document.title = list.length ? `(${list.length}) Jaggery` : "Jaggery";
+
+  // Redraw only when something changed, so focus, hover and open details
+  // survive the 5-second poll.
+  const html = r.view(ms);
+  const view = document.getElementById("view");
+  if (html !== drawn || navigated) {
+    view.innerHTML = html;
+    drawn = html;
+  }
+  if (navigated) {
+    const target = r.anchor && document.getElementById("s-" + r.anchor);
+    if (target) target.scrollIntoView();
+    else { window.scrollTo(0, 0); view.focus({ preventScroll: true }); }
+  }
+  const up = ms.filter(on).length;
+  document.getElementById("foot").textContent = `${word(ms.length)} ${plural(ms.length, "machine", "machines")} · ${word(up, true)} on · updated ${clock(snap.updated_at || Date.now())}`;
+}
+
+function drawBar() {
+  const bar = document.getElementById("bar");
+  bar.hidden = !failing;
+  if (!failing) return;
+  const name = snap && snap.self ? snap.self.name : "this machine";
+  bar.innerHTML = `<span><b>Can't reach ${esc(name)}'s agent.</b> ${lastOK ? "Showing the house as it was at " + esc(clock(lastOK)) + "." : ""} On ${esc(name)}, run:</span>${well("jag doctor")}`;
+}
+
+async function refresh() {
+  try {
+    const r = await fetch("/v1/house", { cache: "no-store" });
+    if (!r.ok) throw new Error(r.status);
+    snap = await r.json();
+    lastOK = new Date();
+    failing = false;
+  } catch (e) {
+    failing = true;
+    if (!snap) document.getElementById("view").innerHTML = `<p class="empty">Can't reach the house yet. Is jag running on this machine?</p>`;
+  }
+  drawBar();
+  draw(false);
+}
+
+async function refreshActivity() {
+  try {
+    const r = await fetch("/v1/house/activity", { cache: "no-store" });
+    if (!r.ok) throw new Error(r.status);
+    activity = (await r.json()).entries || [];
+    activityOK = true;
+  } catch (e) {
+    activityOK = false;
+  }
+  draw(false);
+}
+
+// Copy works without a secure context too: jaggery.local is plain HTTP, where
+// navigator.clipboard is missing, so fall back to a selected textarea.
+async function copy(text) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); return true; }
+  } catch (e) { /* fall through */ }
+  const t = document.createElement("textarea");
+  t.value = text; t.setAttribute("readonly", ""); t.style.position = "fixed"; t.style.opacity = "0";
+  document.body.appendChild(t); t.select();
+  let ok = false;
+  try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+  t.remove();
+  return ok;
+}
+document.addEventListener("click", async ev => {
+  const b = ev.target.closest("[data-copy]");
+  if (!b) return;
+  const ok = await copy(b.dataset.copy);
+  b.textContent = ok ? "Copied" : "Select and copy";
+  setTimeout(() => { b.textContent = "Copy"; }, 1600);
+});
+
+window.addEventListener("hashchange", () => draw(true));
+draw(false);
+refresh();
+setInterval(refresh, 5000);
+refreshActivity();
+setInterval(refreshActivity, 30000);
+</script>
+</body>
+</html>

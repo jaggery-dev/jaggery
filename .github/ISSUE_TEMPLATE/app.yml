@@ -1,0 +1,28 @@
+name: Recognise an app
+description: Ask Jaggery to recognise a self-hosted app it doesn't know yet.
+labels: [enhancement, "area: apps", good first issue, needs triage]
+body:
+  - type: input
+    id: app
+    attributes:
+      label: App
+      placeholder: Navidrome
+    validations:
+      required: true
+  - type: input
+    id: port
+    attributes:
+      label: Default port(s)
+      placeholder: "4533"
+    validations:
+      required: true
+  - type: textarea
+    id: probe
+    attributes:
+      label: How to recognise it
+      description: A path that answers without signing in, and text in the answer that only this app returns. For example, `curl -s http://localhost:4533/` shows `<title>Navidrome</title>`.
+  - type: input
+    id: description
+    attributes:
+      label: One line on what it's for, for the family
+      placeholder: Music from the house's disks

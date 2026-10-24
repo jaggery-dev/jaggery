@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions, and how it went in your house
+    url: https://github.com/jaggery-dev/jaggery/discussions
+    about: Ask anything, share your setup, or tell us how the alpha went.
+  - name: Known issues
+    url: https://github.com/jaggery-dev/jaggery/blob/beta/docs/known-issues.md
+    about: What doesn't work yet, and what hasn't been tried.
+  - name: Security problem
+    url: https://github.com/jaggery-dev/jaggery/security/advisories/new
+    about: Please report security problems privately, not as an issue.
+  - name: Documentation
+    url: https://github.com/jaggery-dev/jaggery/tree/beta/docs
+    about: Getting started, how-to guides and the reference.

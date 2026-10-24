@@ -1,0 +1,20 @@
+name: An idea
+description: Something Jaggery could do for your house.
+labels: [enhancement, needs triage]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What you were trying to do, and what got in the way. Real cases help most.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help
+      description: How you imagine it working. Commands or a sketch are welcome.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you do today instead

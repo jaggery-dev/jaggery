@@ -1,0 +1,38 @@
+title: "How it went: "
+labels: [alpha feedback]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for trying Jaggery. A few minutes here tells us more than any number could: Jaggery has no telemetry, so this is how we learn. Something broken? Please [open an issue](https://github.com/jaggery-dev/jaggery/issues/new/choose) as well.
+  - type: textarea
+    id: house
+    attributes:
+      label: What's in your house
+      description: Machines (OS, Pi, NAS, GPU), the network (ISP router, mesh, VLANs), AI runtimes and apps. Only what you're happy to share.
+      placeholder: "Linux desktop with an NVIDIA card, a Pi 4, an M2 MacBook; mesh Wi-Fi; Ollama, Jellyfin"
+    validations:
+      required: true
+  - type: dropdown
+    id: minutes
+    attributes:
+      label: How long until two machines were on one page?
+      options:
+        - Under 5 minutes
+        - 5 to 15 minutes
+        - Longer
+        - I didn't get there
+    validations:
+      required: true
+  - type: textarea
+    id: used
+    attributes:
+      label: What did you use it for?
+  - type: textarea
+    id: confused
+    attributes:
+      label: What confused you, or got in the way?
+  - type: textarea
+    id: miss
+    attributes:
+      label: What would you miss if it stopped working?

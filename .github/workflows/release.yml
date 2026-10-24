@@ -1,0 +1,137 @@
+name: release
+
+# Every merge to beta publishes a prerelease tagged beta-<n>; every v* tag
+# (a prod promotion) publishes, or fills in, that version's release. Each
+# carries a build per platform, SHA256SUMS and release.json, which `jag update`
+# reads (internal/update), and release.sig: both signed with the release key
+#, without which no agent installs the build.
+
+on:
+  push:
+    branches: [beta]
+    # Prod tags only: beta tags are made by this workflow.
+    tags: ["v*", "!v*-beta.*"]
+    # A merge that only changes docs isn't a new build: publishing one would
+    # restart the house's update wait for nothing.
+    paths-ignore:
+      - "**.md"
+      - "tech-specs/**"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    # The release environment holds JAGGERY_SIGNING_KEY, readable only from
+    # beta, prod and v* tags (releases.md, "Signing key setup").
+    environment: release
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      # SemVer (tech-specs/releases.md): VERSION holds the next release. A
+      # beta build is <VERSION>-beta.<n>, tagged v<VERSION>-beta.<n>, where n
+      # is one more than the highest beta number released so far (it was the
+      # run number until 0.6.0-beta.50); a prod tag must
+      # equal VERSION. (Until P0b, beta was tagged beta-<run>; agents from
+      # 0.5.0-beta.16 on understand both.)
+      - name: name this build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          next=$(tr -d '[:space:]' < VERSION)
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            if [ "$GITHUB_REF_NAME" != "v$next" ]; then
+              echo "tag $GITHUB_REF_NAME doesn't match VERSION ($next) on this commit"
+              exit 1
+            fi
+            echo "VERSION=$next" >> "$GITHUB_ENV"
+            echo "TAG=$GITHUB_REF_NAME" >> "$GITHUB_ENV"
+            echo "CHANNEL=prod" >> "$GITHUB_ENV"
+          else
+            last=$(gh release list --limit 200 --json tagName \
+              -q '.[].tagName | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+-beta\\.[0-9]+$")) | sub(".*-beta\\."; "")' | sort -n | tail -1)
+            n=$(( ${last:-0} + 1 ))
+            echo "VERSION=$next-beta.$n" >> "$GITHUB_ENV"
+            echo "TAG=v$next-beta.$n" >> "$GITHUB_ENV"
+            echo "CHANNEL=beta" >> "$GITHUB_ENV"
+          fi
+          echo "BUILT_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
+      - name: build every platform
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          pkg=github.com/jaggery-dev/jaggery/internal/version
+          ldflags="-s -w -X $pkg.Version=$VERSION -X $pkg.Commit=$GITHUB_SHA -X $pkg.BuiltAt=$BUILT_AT -X $pkg.Channel=$CHANNEL"
+          mkdir dist
+          for target in linux/amd64 linux/arm64 linux/arm/7 darwin/arm64 darwin/amd64 windows/amd64; do
+            IFS=/ read -r goos goarch goarm <<< "$target"
+            name="jag-$goos-$goarch"
+            if [ "$goarch" = arm ]; then name="jag-$goos-armv$goarm"; fi
+            if [ "$goos" = windows ]; then name="$name.exe"; fi
+            GOOS=$goos GOARCH=$goarch GOARM=$goarm go build -trimpath -ldflags "$ldflags" -o "dist/$name" ./cmd/jag
+          done
+          # The installer ships in the release too, so the signature covers
+          # it: https://jaggery.dev/install downloads and checks it.
+          cp scripts/install.sh dist/install.sh
+          (cd dist && sha256sum jag-* install.sh > SHA256SUMS)
+          printf '{"version":"%s","channel":"%s","commit":"%s","built_at":"%s"}\n' \
+            "$VERSION" "$CHANNEL" "$GITHUB_SHA" "$BUILT_AT" > dist/release.json
+          cat dist/SHA256SUMS dist/release.json
+
+      # The key goes to the script in its environment only, never to a file
+      # outside the script's own temporary directory, nor to the log.
+      - name: sign
+        env:
+          JAGGERY_SIGNING_KEY: ${{ secrets.JAGGERY_SIGNING_KEY }}
+        run: sh scripts/sign-release.sh dist
+
+      - name: the signature checks out against a key built into jag
+        run: |
+          jq -j '"jaggery release v1\nversion \(.version)\nchannel \(.channel)\ncommit \(.commit)\nbuilt_at \(.built_at)\n"' dist/release.json > statement
+          cat dist/SHA256SUMS >> statement
+          openssl base64 -d -A -in dist/release.sig -out sig.bin
+          for key in internal/update/keys/*.pem; do
+            if openssl pkeyutl -verify -rawin -pubin -inkey "$key" -in statement -sigfile sig.bin; then
+              echo "signed with $key"
+              exit 0
+            fi
+          done
+          echo "release.sig doesn't verify with any key in internal/update/keys"
+          exit 1
+
+      - name: the linux/amd64 build reports its version
+        run: |
+          ./dist/jag-linux-amd64 version | tee /dev/stderr | grep -q "$VERSION"
+
+      - name: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$CHANNEL" = beta ]; then
+            gh release create "$TAG" dist/* --prerelease --target "$GITHUB_SHA" \
+              --title "$VERSION" --notes "$(git log -1 --format=%s)"
+          elif gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber
+          else
+            gh release create "$TAG" dist/* --verify-tag --title "$TAG" --generate-notes
+          fi
+
+      - name: keep the newest 10 beta builds
+        if: env.CHANNEL == 'beta'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release list --limit 200 --json tagName,createdAt \
+            -q '[.[] | select((.tagName | startswith("beta-")) or (.tagName | test("^v[0-9]+\\.[0-9]+\\.[0-9]+-beta\\.")))] | sort_by(.createdAt) | reverse | .[10:] | .[].tagName' |
+          while read -r tag; do
+            gh release delete "$tag" --cleanup-tag --yes
+          done

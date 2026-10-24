@@ -1,0 +1,118 @@
+name: ci
+
+# Once per change: on the pull request. A merge to beta isn't checked again
+# (its PR was, and merges are squashed); a push to prod (a promotion) is.
+# The private repo has 2,000 free minutes a month, so jobs are few.
+on:
+  pull_request:
+    branches: [beta, prod]
+    # Docs don't change the binary; scripts/ci-local.sh still checks them
+    # for personal material before a merge.
+    paths-ignore:
+      - "**.md"
+      - "tech-specs/**"
+  push:
+    branches: [prod]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "these files need gofmt:"
+            echo "$unformatted"
+            exit 1
+          fi
+      - name: docs/reference/cli.md matches jag's help
+        run: sh scripts/gen-cli-docs.sh --check
+      - run: go vet ./...
+      - run: go test -race ./...
+
+  separation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: no personal material in the repo
+        env:
+          PERSONAL_MARKERS: ${{ secrets.PERSONAL_MARKERS }}
+        run: scripts/check-personal.sh
+
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: the agent must start, persist an identity and read it back
+        env:
+          JAGGERY_STATE_DIR: ${{ runner.temp }}/jaggery-smoke
+        run: |
+          go build -o /tmp/jag ./cmd/jag
+
+          if /tmp/jag status; then
+            echo "status should fail before any identity exists"
+            exit 1
+          fi
+
+          timeout -s TERM 5 /tmp/jag up || [ $? -eq 124 ]
+          /tmp/jag status
+
+          before=$(/tmp/jag status | grep 'machine id')
+          timeout -s TERM 5 /tmp/jag up || [ $? -eq 124 ]
+          after=$(/tmp/jag status | grep 'machine id')
+          if [ "$before" != "$after" ]; then
+            echo "identity changed across restarts: '$before' then '$after'"
+            exit 1
+          fi
+
+          /tmp/jag status --json | grep -q '"ok": true'
+          code=0; /tmp/jag doctor --json > "$RUNNER_TEMP/doctor.json" || code=$?
+          cat "$RUNNER_TEMP/doctor.json"
+          [ "$code" -eq 5 ] && grep -q '"code": "checks_failed"' "$RUNNER_TEMP/doctor.json"
+
+  # A house of agents on one runner, each in its own network namespace on a
+  # bridge (scripts/house-test.sh): joining, house-wide trust, the name holder
+  # and shared folders across machines, on every change.
+  house:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: three machines in namespaces
+        # Ubuntu restricts unprivileged user namespaces, so run as root.
+        run: sudo -E env "PATH=$PATH" scripts/house-test.sh
+      - name: the one-line installer, against fake signed releases
+        run: sh scripts/get-test.sh
+
+  # Every platform a home runs is a target: a Raspberry Pi (linux/arm64), an
+  # Apple-silicon Mac (darwin/arm64), a Windows mini PC (windows/amd64). A
+  # single static binary per platform is a product claim, so it gets checked
+  # on every change, in one job to save minutes.
+  cross-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - env:
+          CGO_ENABLED: "0"
+        run: |
+          for target in linux/amd64 linux/arm64 linux/arm/7 darwin/arm64 darwin/amd64 windows/amd64; do
+            IFS=/ read -r goos goarch goarm <<< "$target"
+            GOOS=$goos GOARCH=$goarch GOARM=$goarm go build -o /dev/null ./cmd/jag
+            echo "built $target"
+          done
