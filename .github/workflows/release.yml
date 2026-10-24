@@ -26,7 +26,7 @@ concurrency:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # The release environment holds JAGGERY_SIGNING_KEY, readable only from
     # beta, prod and v* tags (releases.md, "Signing key setup").
     environment: release
