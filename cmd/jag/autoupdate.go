@@ -139,6 +139,7 @@ func checkForUpdate(ctx context.Context, id *identity.Identity, store *home.Stor
 		st.Error = err.Error()
 		return st
 	}
+	snap = withOwnWithdrawals(snap, update.Withdrawn(dir))
 	run := update.RunningNow()
 	leaving := inHouse(snap, run.Commit, func(inv inventory.Report) []string { return inv.WithdrawnCommits })
 	if !update.Newer(m, run) && !leaving {
@@ -204,6 +205,19 @@ func checkForUpdate(ctx context.Context, id *identity.Identity, store *home.Stor
 var installedAwaitingRestart atomic.Value
 
 // inHouse reports whether any machine's list (from its inventory) has commit.
+// withOwnWithdrawals adds the withdrawals this machine has just recorded
+// (findRelease marks them) to its own entry in the house view, so they count
+// at once rather than after the next scan, as its own rollbacks do. Found by
+// the first withdrawal rehearsal: a machine running a withdrawn build stayed
+// on it for a whole update interval.
+func withOwnWithdrawals(snap house.Snapshot, own []string) house.Snapshot {
+	if len(own) == 0 {
+		return snap
+	}
+	snap.Self.Inventory.WithdrawnCommits = append(slices.Clone(snap.Self.Inventory.WithdrawnCommits), own...)
+	return snap
+}
+
 func inHouse(snap house.Snapshot, commit string, list func(inventory.Report) []string) bool {
 	if commit == "" {
 		return false

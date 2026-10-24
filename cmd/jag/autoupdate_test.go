@@ -229,3 +229,27 @@ func TestPlanUpdateWaitsForATrialElsewhere(t *testing.T) {
 		t.Fatalf("got %+v, want a wait for the trial", p)
 	}
 }
+
+// A withdrawal this machine has only just recorded counts at once: nothing
+// in the house view says so yet (the first withdrawal rehearsal stayed on the
+// withdrawn build for a whole update interval).
+func TestOwnWithdrawalCountsAtOnce(t *testing.T) {
+	now := time.Date(2026, 10, 24, 15, 13, 0, 0, time.UTC)
+	run := update.Running{Version: "0.7.0-beta.4", Commit: "c4", BuiltAt: now.Add(-time.Hour)}
+	older := update.Manifest{Version: "0.7.0-beta.3", Commit: "c3", BuiltAt: now.Add(-2 * time.Hour)}
+	snap := houseWithHolder("0.7.0-beta.4", "c4", time.Hour, false, now)
+
+	if inHouse(snap, run.Commit, func(inv inventory.Report) []string { return inv.WithdrawnCommits }) {
+		t.Fatal("test set-up: the house view already knows")
+	}
+	snap = withOwnWithdrawals(snap, []string{"c4"})
+	if !inHouse(snap, run.Commit, func(inv inventory.Report) []string { return inv.WithdrawnCommits }) {
+		t.Fatal("this machine's own withdrawal isn't counted")
+	}
+	if p := planUpdate("bbb", snap, older, run, "beta", now); p.Version != "0.7.0-beta.3" {
+		t.Fatalf("running a build it has just seen withdrawn: %+v, want to move to beta.3", p)
+	}
+	if got := withOwnWithdrawals(snap, nil); len(got.Self.Inventory.WithdrawnCommits) != 1 {
+		t.Fatal("no own withdrawals should change nothing")
+	}
+}
