@@ -244,3 +244,29 @@ func TestARelayedReleaseMustBeSigned(t *testing.T) {
 		}
 	}
 }
+
+// A relay doesn't offer a build it knows was withdrawn: a machine that
+// updates through it is offered the newest good one instead, and so moves
+// off the withdrawn build.
+func TestRelaySkipsWithdrawnBuilds(t *testing.T) {
+	dir := t.TempDir()
+	for _, v := range []string{"0.7.0-beta.3", "0.7.0-beta.4"} {
+		d := filepath.Join(dir, relayDir, "v"+v)
+		_ = os.MkdirAll(d, 0o700)
+		m, _ := json.Marshal(update.Manifest{Version: v, Channel: "beta", Commit: "c-" + v})
+		_ = os.WriteFile(filepath.Join(d, update.ManifestName), m, 0o600)
+		_ = os.WriteFile(filepath.Join(d, update.SumsName), []byte{}, 0o600)
+	}
+	if r, _, _ := cachedRelease(dir, ""); r.Manifest.Version != "0.7.0-beta.4" {
+		t.Fatalf("before the withdrawal: offered %q", r.Manifest.Version)
+	}
+	if err := update.MarkWithdrawn(dir, "c-0.7.0-beta.4"); err != nil {
+		t.Fatal(err)
+	}
+	if r, _, ok := cachedRelease(dir, ""); !ok || r.Manifest.Version != "0.7.0-beta.3" {
+		t.Fatalf("after the withdrawal: offered %q, want beta.3", r.Manifest.Version)
+	}
+	if _, _, ok := cachedRelease(dir, "0.7.0-beta.4"); ok {
+		t.Fatal("the withdrawn build is still served when asked for by name")
+	}
+}

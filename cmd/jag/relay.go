@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -175,8 +176,16 @@ func pruneRelayCache(stateDir string, snap house.Snapshot, just string) {
 // version asked for, or the newest when want is empty. Its sums cover only
 // the builds actually kept here: a relay offers what it holds, not
 // everything the release lists.
+//
+// A build this machine knows was withdrawn is never offered, so machines
+// that update through it move off a withdrawn build too, instead of being
+// offered it as the newest (found by the first withdrawal rehearsal).
 func cachedRelease(stateDir, want string) (relayed, string, bool) {
+	withdrawn := update.Withdrawn(stateDir)
 	for _, k := range keptReleases(stateDir) {
+		if k.Manifest.Commit != "" && slices.Contains(withdrawn, k.Manifest.Commit) {
+			continue
+		}
 		if want == "" || k.Manifest.Version == want {
 			return k.relayed, k.dir, true
 		}
