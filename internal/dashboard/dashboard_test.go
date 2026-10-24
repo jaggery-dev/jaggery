@@ -12,8 +12,11 @@ func TestPageStaysInTheHouse(t *testing.T) {
 	page := string(Index())
 
 	for _, tag := range regexp.MustCompile(`<(script|link|img|iframe)\b[^>]*>`).FindAllString(page, -1) {
-		if strings.Contains(tag, "src=") || strings.Contains(tag, "href=") {
-			t.Errorf("page loads an outside resource: %s", tag)
+		// A data: URL (the favicon) is inline: it fetches nothing.
+		for _, ref := range regexp.MustCompile(`(?:src|href)="([^"]*)"`).FindAllStringSubmatch(tag, -1) {
+			if !strings.HasPrefix(ref[1], "data:") {
+				t.Errorf("page loads an outside resource: %s", tag)
+			}
 		}
 	}
 	if strings.Contains(page, "@import") || strings.Contains(page, "url(") {

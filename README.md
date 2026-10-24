@@ -1,3 +1,5 @@
+<img src="assets/brand/icon-512.png" alt="" width="96" height="96">
+
 # Jaggery
 
 **Every computer in your home, working as one.**
