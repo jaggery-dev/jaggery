@@ -92,6 +92,12 @@ including the ones held back or refused. The day looks like 2026-10-07.
 Shows this build's version, the platform, and the release channel it updates
 from.
 `
+	licencesHelp = `usage: jag licences
+
+Prints the licence of Jaggery (Apache-2.0) and of the software built into
+jag: Go and each library, with their copyright notices. jag licenses works
+too.
+`
 )
 
 // helpFor returns the usage text for a command, with aliases.
@@ -135,6 +141,8 @@ func helpFor(cmd string) (string, bool) {
 		return versionHelp, true
 	case "update":
 		return updateHelp, true
+	case "licences", "licenses":
+		return licencesHelp, true
 	}
 	return "", false
 }

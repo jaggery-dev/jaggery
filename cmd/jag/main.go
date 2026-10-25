@@ -29,6 +29,7 @@ import (
 	"github.com/jaggery-dev/jaggery/internal/identity"
 	"github.com/jaggery-dev/jaggery/internal/inventory"
 	"github.com/jaggery-dev/jaggery/internal/languard"
+	"github.com/jaggery-dev/jaggery/internal/licences"
 	"github.com/jaggery-dev/jaggery/internal/modelwatch"
 	"github.com/jaggery-dev/jaggery/internal/netif"
 	"github.com/jaggery-dev/jaggery/internal/pairing"
@@ -60,6 +61,7 @@ usage:
   jag share           folders this machine lends to models and agents (jag share add <folder>)
   jag files [log]     what models and agents read and changed in shares (jag files restore)
   jag version         show this build's version
+  jag licences        the licences of Jaggery and the software built into it
   jag update          install the newest release (--check, --rollback)
 
 jag <command> --help says more about a command; jag help exit-codes lists
@@ -146,6 +148,8 @@ func run(cmd string, args []string) error {
 		err = files(args)
 	case "version", "--version":
 		err = showVersion()
+	case "licences", "licenses":
+		fmt.Print(licences.Text)
 	case "update":
 		err = selfUpdate(args)
 	case "-h", "--help", "help":

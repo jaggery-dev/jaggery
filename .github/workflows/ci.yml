@@ -37,6 +37,8 @@ jobs:
           fi
       - name: docs/reference/cli.md matches jag's help
         run: sh scripts/gen-cli-docs.sh --check
+      - name: the licences built into jag match go.mod
+        run: sh scripts/gen-licences.sh --check
       - run: go vet ./...
       - run: go test -race ./...
 

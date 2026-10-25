@@ -25,6 +25,7 @@ usage:
   jag share           folders this machine lends to models and agents (jag share add <folder>)
   jag files [log]     what models and agents read and changed in shares (jag files restore)
   jag version         show this build's version
+  jag licences        the licences of Jaggery and the software built into it
   jag update          install the newest release (--check, --rollback)
 
 jag <command> --help says more about a command; jag help exit-codes lists
@@ -261,6 +262,16 @@ build. Releases are public and need no token. One is used if present
 ($JAGGERY_GITHUB_TOKEN, $GITHUB_TOKEN, a github-token file in the state
 directory, or a logged-in gh), which raises GitHub's rate limit for a house
 with many machines behind one address.
+```
+
+## jag licences
+
+```
+usage: jag licences
+
+Prints the licence of Jaggery (Apache-2.0) and of the software built into
+jag: Go and each library, with their copyright notices. jag licenses works
+too.
 ```
 
 ## Exit codes

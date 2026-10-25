@@ -14,6 +14,7 @@ go test ./internal/router/         # one package
 scripts/ci-local.sh                # everything CI runs; must end "all CI checks passed locally"
 scripts/house-test.sh --keep       # N agents on one Linux machine, in namespaces
 sh scripts/gen-cli-docs.sh         # after changing any usage text in cmd/jag
+sh scripts/gen-licences.sh         # after adding, removing or upgrading a dependency
 ```
 
 - `scripts/ci-local.sh` formats and tests with the Go version in `go.mod`, not your local one. gofmt aligns trailing comments differently between versions: run it rather than plain `gofmt`.
