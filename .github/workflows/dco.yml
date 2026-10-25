@@ -1,0 +1,26 @@
+name: dco
+
+# Every commit in a pull request is signed off (CONTRIBUTING.md, "Sign your
+# work"). Docs changes too, so there's no paths filter. It runs on
+# pull_request, not pull_request_target: the token is read-only, no secret is
+# available, and the PR's own text is only compared by scripts/check-dco.sh.
+on:
+  pull_request:
+    branches: [beta, prod]
+
+permissions:
+  contents: read
+
+jobs:
+  signed-off:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: every commit has a Signed-off-by line from its author
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: sh scripts/check-dco.sh "$BASE_SHA" "$HEAD_SHA"
