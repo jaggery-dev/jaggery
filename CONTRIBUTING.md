@@ -73,7 +73,7 @@ Jaggery is licensed under Apache-2.0, and contributions are accepted under the s
 git commit -s -m "Recognise Navidrome"
 ```
 
-This adds `Signed-off-by: Your Name <you@example.com>` to the commit. Your GitHub `noreply` address (GitHub → Settings → Emails) is fine, if you'd rather not publish your email.
+This adds `Signed-off-by: Your Name <you@example.com>` to the commit. Your GitHub `noreply` address (GitHub → Settings → Emails) is fine, if you'd rather not publish your email. The sign-off must use the same email as the commit's author. A check on every pull request (`scripts/check-dco.sh`) says which commits need it. To sign off commits you've already made, run `git rebase --signoff origin/beta`.
 
 ## Security problems
 
