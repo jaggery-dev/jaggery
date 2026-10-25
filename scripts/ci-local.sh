@@ -1,6 +1,7 @@
 #!/bin/sh
 # Runs the checks in .github/workflows/ci.yml on this machine: gofmt, the CLI
-# reference (scripts/gen-cli-docs.sh --check), vet and race tests with the Go
+# reference (scripts/gen-cli-docs.sh --check), the licences built into jag
+# (scripts/gen-licences.sh --check), vet and race tests with the Go
 # version in go.mod, the personal-material check, the smoke test, the house
 # test (scripts/house-test.sh), and the cross-builds. A PR merges when this
 # passes; GitHub's CI is not waited for.
@@ -25,6 +26,9 @@ fi
 
 step "test: cli reference"
 sh scripts/gen-cli-docs.sh --check
+
+step "test: licences built into jag"
+sh scripts/gen-licences.sh --check
 
 step "test: go vet"
 go vet ./...

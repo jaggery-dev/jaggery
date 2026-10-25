@@ -42,7 +42,7 @@ Jaggery is one Go binary, `jag`, with no cgo and five direct dependencies (see `
 
 ## Conventions
 
-- **Standard library first.** A new dependency must be permissively licensed (Apache-2.0, MIT, BSD) and worth its weight; say why in the PR.
+- **Standard library first.** A new dependency must be permissively licensed (Apache-2.0, MIT, BSD) and worth its weight; say why in the PR, and run `sh scripts/gen-licences.sh` so `jag licences` carries its notice.
 - **Plain English** in docs, help text and error messages: say what's wrong and the command that fixes it. The voice is in the site's brand notes: short sentences, no jargon, British spelling.
 - **Test without a network.** Decisions are pure functions where possible (`internal/router`); HTTP goes through `httptest`; multi-machine behaviour goes in the test house.
 - **No personal material** in code, tests or docs: example hosts like `nas` and `desktop`, people like Alex, addresses from `192.0.2.0/24`, `198.51.100.0/24`, `2001:db8::/32`, emails at `example.com`. CI checks.

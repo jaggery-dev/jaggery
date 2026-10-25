@@ -26,7 +26,7 @@ run() { JAGGERY_STATE_DIR="$state" "$bin" "$@" 2>&1 || true; }
   echo '```'
   run help
   echo '```'
-  for cmd in up status peers map invite join approve ping forget models doctor activity outbound apps share files version update; do
+  for cmd in up status peers map invite join approve ping forget models doctor activity outbound apps share files version update licences; do
     echo
     echo "## jag $cmd"
     echo
