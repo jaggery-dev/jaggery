@@ -20,7 +20,7 @@ Jaggery is one Go binary, `jag`, with no cgo and five direct dependencies (see `
 |---|---|
 | `cmd/jag` | Commands, the agent's HTTP handlers, and the wiring between packages |
 | `internal/activity` | The AI activity log, a file per day |
-| `internal/airuntime` | Finds Ollama, LM Studio and llama.cpp on this machine, and their models |
+| `internal/airuntime` | Finds Ollama, LM Studio, llama.cpp and vLLM on this machine (default ports and `runtimes.json`), and their models |
 | `internal/apps` | Recognises web apps (the fingerprint catalog), **the easiest place to start** |
 | `internal/compat` | Protocol ranges between versions, and state-file schema migrations |
 | `internal/dashboard` | The embedded page |

@@ -180,7 +180,7 @@ var runtimePorts = airuntime.DefaultPorts
 // checkedRuntimes is every runtime kind a dial-back is asked to look for. All
 // of them, not just those found on localhost: one bound only to the LAN
 // address is invisible locally and is exactly the exposure to report.
-var checkedRuntimes = []airuntime.Kind{airuntime.Ollama, airuntime.LMStudio, airuntime.LlamaCpp}
+var checkedRuntimes = airuntime.Kinds
 
 // reachHandler dials an approved caller back on the agent ports it names, and
 // looks for AI runtimes answering on its address. It lives on the secured

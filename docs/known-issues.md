@@ -11,7 +11,6 @@ What we already know doesn't work, or hasn't been tried. If you hit one of these
 | **NVIDIA GPU memory can be missing** from `jag map` (seen on a cloud L4). NVIDIA hasn't been tried on a home machine yet. | Models are still served. Please tell us what your card shows. | [#4](https://github.com/jaggery-dev/jaggery/issues/4) |
 | **A model that isn't loaded yet** can take minutes to answer its first request, and apps with short timeouts give up. | Send a first request with a long timeout (`curl`), or load the model in its runtime first. | [#5](https://github.com/jaggery-dev/jaggery/issues/5) |
 | **Windows** isn't supported. | Run Jaggery on another machine; Windows apps can still use `ai.local`. | [#17](https://github.com/jaggery-dev/jaggery/issues/17) |
-| **vLLM and exo** aren't detected. Ollama, LM Studio and llama.cpp are. | | [#6](https://github.com/jaggery-dev/jaggery/issues/6) |
 
 ## Not tried yet
 

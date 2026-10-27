@@ -42,7 +42,7 @@ Then open **http://jaggery.local** on any phone or laptop at home.
 
 - **One page for the house** at `jaggery.local`: every machine, its memory, disks and GPU, and the self-hosted apps it runs (Jellyfin, Immich, Home Assistant and [17 more](internal/apps/apps.go)). Works on a phone.
 - **Short names for apps**: `jag apps name "Open WebUI" chat`, and every device in the house opens it at `http://chat.local`, whichever machine and port it's on.
-- **One address for AI** at `ai.local`: an OpenAI-compatible endpoint in front of Ollama, LM Studio and llama.cpp on every machine. Each request goes to the machine that has the model loaded, or ran it fastest. A new model stays off `ai.local` until you approve it.
+- **One address for AI** at `ai.local`: an OpenAI-compatible endpoint in front of Ollama, LM Studio, llama.cpp and vLLM on every machine. Each request goes to the machine that has the model loaded, or ran it fastest. A new model stays off `ai.local` until you approve it.
 - **Folders for models and agents**: lend a folder with `jag share add`, and AI apps read it (and, if you allow it, write to it) through the MCP server at `ai.local/mcp`. Every access is logged, and old versions are kept for 30 days.
 - **Hosted models, only if you add them**: providers and models you allow, a spending cap, and every request kept word for word (`jag outbound`).
 - **Nothing out of sight**: `jag activity` shows who used which model on which machine; `jag files log` shows what agents read and changed.
@@ -65,7 +65,7 @@ curl http://ai.local/v1/chat/completions \
   -d '{"model": "llama3.2:3b", "messages": [{"role": "user", "content": "hi"}]}'
 ```
 
-You need two or more computers on the same home network. An AI runtime (Ollama, LM Studio or llama.cpp) is optional: without one, you still get the page and the names.
+You need two or more computers on the same home network. An AI runtime (Ollama, LM Studio, llama.cpp or vLLM) is optional: without one, you still get the page and the names.
 
 | Platform | Status |
 |---|---|
