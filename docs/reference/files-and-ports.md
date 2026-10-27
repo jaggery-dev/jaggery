@@ -4,7 +4,7 @@
 
 | Port | Reachable from | Serves |
 |---|---|---|
-| 80/tcp | home network | The page, `ai.local/v1`, `ai.local/mcp` (when the agent may bind it) |
+| 80/tcp | home network | The page, `ai.local/v1`, `ai.local/api` (Ollama's API), `ai.local/mcp` (when the agent may bind it) |
 | 7373/tcp | home network | The same, always; plus identity and join requests between machines |
 | 7374/tcp | approved machines | Mutual TLS between agents |
 | 5353/udp | home network | mDNS (shared with Avahi or mDNSResponder) |

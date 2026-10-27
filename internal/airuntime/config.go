@@ -87,16 +87,16 @@ func ConfigError() error {
 func configured() []Port {
 	cfg.mu.Lock()
 	defer cfg.mu.Unlock()
-	now := time.Now()
-	if !cfg.checked.IsZero() && now.Sub(cfg.checked) < reloadEvery {
-		return cfg.ports
-	}
-	cfg.checked = now
 	dir, err := identity.StateDir()
 	if err != nil {
 		return nil
 	}
 	path := filepath.Join(dir, ConfigFile)
+	now := time.Now()
+	if path == cfg.path && !cfg.checked.IsZero() && now.Sub(cfg.checked) < reloadEvery {
+		return cfg.ports
+	}
+	cfg.checked = now
 	var mod time.Time
 	size := int64(-1)
 	if info, err := os.Stat(path); err == nil {
