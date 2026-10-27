@@ -601,6 +601,8 @@ function machineCard(m) {
   if (m.machine_id === snap.name_holder) badges.push(`<span class="badge role" title="Answers for jaggery.local and ai.local">Names</span>`);
   if (i.role) badges.push(`<span class="badge role">${esc(i.role === "ai" ? "AI" : i.role[0].toUpperCase() + i.role.slice(1))}</span>`);
   if (i.laptop) badges.push(`<span class="badge">Laptop</span>`);
+  const paused = i.ai_paused && (!i.ai_paused.until || new Date(i.ai_paused.until) > Date.now());
+  if (paused) badges.push(`<span class="badge press" title="${esc(i.ai_paused.until ? "AI requests go elsewhere until " + new Date(i.ai_paused.until).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"}) : "AI requests go elsewhere until jag ai resume")}">AI paused</span>`);
   if (m.incompatible) badges.push(`<span class="badge risk">Needs a newer jag</span>`);
   else if (i.update && i.update.available && !updating(m)) badges.push(`<span class="badge press" title="${esc(i.update.available)}">Update ready</span>`);
 

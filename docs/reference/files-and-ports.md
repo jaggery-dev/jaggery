@@ -28,6 +28,7 @@ AI runtimes the agent looks for on its own machine: Ollama 11434, LM Studio 1234
 | `files/` | Shared-folder access log, a file per day (30 days) | No: `jag files log` |
 | `activity/` | Model requests, a file per day (30 days) | No: `jag activity` |
 | `runtimes.json` | AI runtimes on ports other than their defaults | **Yes**: [how-to](../how-to/use-ai-local.md#a-runtime-on-another-port) |
+| `ai-pause.json` | This machine's AI pause, while it lasts | No: `jag ai pause`, `jag ai resume` |
 | `providers.json` | Hosted model providers, caps and groups | **Yes**: [how-to](../how-to/hosted-models.md) |
 | `*.key` | Hosted providers' API keys, mode `0600` | **Yes** |
 | `hosted-spend.json` | Spend and free allowance used, per provider | No |

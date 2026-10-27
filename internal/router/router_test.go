@@ -2,6 +2,7 @@ package router
 
 import (
 	"testing"
+	"time"
 
 	"github.com/jaggery-dev/jaggery/internal/airuntime"
 	"github.com/jaggery-dev/jaggery/internal/house"
@@ -202,5 +203,46 @@ func TestPickSkipsIncompatibleMachines(t *testing.T) {
 		Inventory: inventory.Report{Runtimes: []airuntime.Runtime{{Kind: airuntime.Ollama, Models: []airuntime.Model{{Name: "llama3.2:3b"}}}}}}
 	if _, ok := Pick([]house.Machine{m}, "llama3.2:3b", NewSpeedBook()); ok {
 		t.Fatal("routed to an incompatible machine")
+	}
+}
+
+// The issue's case: desktop is paused for a game, so a model on both
+// desktop and nas goes to nas, even though desktop has it loaded.
+func TestPickSkipsPausedMachines(t *testing.T) {
+	at := time.Date(2026, 10, 27, 20, 0, 0, 0, time.UTC)
+	old := now
+	now = func() time.Time { return at }
+	t.Cleanup(func() { now = old })
+
+	later := at.Add(2 * time.Hour)
+	desktop := machine("desktop", false, true, ollama(airuntime.Model{Name: "m", Loaded: true}))
+	desktop.Inventory.AIPaused = &inventory.Pause{Since: at.Add(-time.Minute), Until: &later}
+	nas := machine("nas", true, true, ollama(airuntime.Model{Name: "m"}))
+
+	target, ok := Pick([]house.Machine{desktop, nas}, "m", nil)
+	if !ok || target.Name != "nas" {
+		t.Fatalf("picked %+v, want nas while desktop is paused", target)
+	}
+	if got := PausedWith([]house.Machine{desktop, nas}, "m"); len(got) != 1 || got[0] != "desktop" {
+		t.Errorf("PausedWith = %v, want [desktop]", got)
+	}
+
+	// Only the paused machine has it: nothing to pick, and it says why.
+	if _, ok := Pick([]house.Machine{desktop}, "m", nil); ok {
+		t.Error("a paused machine was picked")
+	}
+
+	// A pause without an end holds; one that has run out doesn't.
+	desktop.Inventory.AIPaused.Until = nil
+	if _, ok := Pick([]house.Machine{desktop}, "m", nil); ok {
+		t.Error("a pause until resumed was ignored")
+	}
+	ended := at.Add(-time.Second)
+	desktop.Inventory.AIPaused.Until = &ended
+	if target, ok := Pick([]house.Machine{desktop}, "m", nil); !ok || target.Name != "desktop" {
+		t.Errorf("a pause that ended still holds: %+v", target)
+	}
+	if got := PausedWith([]house.Machine{desktop}, "m"); got != nil {
+		t.Errorf("PausedWith after the pause ended = %v", got)
 	}
 }

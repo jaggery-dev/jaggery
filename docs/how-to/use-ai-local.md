@@ -29,6 +29,17 @@ jag activity
 
 A machine that already has the model loaded; otherwise the fastest measured machine the model fits on. See [How it works](../how-it-works.md#ailocal).
 
+## Keep requests off a machine for a while
+
+The fastest machine is often the gaming PC. To keep `ai.local` off it while a game runs, on that machine:
+
+```sh
+jag ai pause --for 2h     # or without --for: until you resume
+jag ai resume
+```
+
+While it's paused, requests go to another machine that has the model. The page shows "AI paused" on its card, and `jag activity` notes the machines passed over. The rest of the house hears within about 20 seconds; the machine itself stops taking requests at once. A model that only the paused machine has is refused with a `503` that says so.
+
 ## If a model is missing or refused
 
 - Not in `/v1/models`: the runtime isn't running on that machine, or it listens on a port other than its default (Ollama 11434, LM Studio 1234, llama.cpp 8080, vLLM 8000). `jag map` shows what each machine found, and `jag doctor` says when a default port is taken by another app. To use another port, see below.
@@ -42,4 +53,5 @@ If a runtime listens somewhere other than its default port, for example llama.cp
 ```
 
 `kind` is one of `ollama`, `lmstudio`, `llamacpp` or `vllm`. The agent reads the file again within a few seconds of a change; no restart is needed. The default ports are still checked too. An entry only counts if the runtime there answers in its own way, so a wrong port finds nothing rather than mistaking a web app for a runtime. Jaggery always talks to runtimes on `127.0.0.1`, so the runtime can stay closed to the network.
+- `503` "where AI requests are paused": only a paused machine has the model. Run `jag ai resume` there, or wait.
 - `403`: the model isn't approved. See [Approve models](approve-models.md).
