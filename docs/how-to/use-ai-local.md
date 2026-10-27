@@ -31,5 +31,15 @@ A machine that already has the model loaded; otherwise the fastest measured mach
 
 ## If a model is missing or refused
 
-- Not in `/v1/models`: the runtime isn't running on that machine, or listens on a port Jaggery doesn't probe yet (Ollama 11434, LM Studio 1234, llama.cpp 8080). `jag map` shows what each machine found.
+- Not in `/v1/models`: the runtime isn't running on that machine, or it listens on a port other than its default (Ollama 11434, LM Studio 1234, llama.cpp 8080, vLLM 8000). `jag map` shows what each machine found, and `jag doctor` says when a default port is taken by another app. To use another port, see below.
+
+## A runtime on another port
+
+If a runtime listens somewhere other than its default port, for example llama.cpp on 8181 because a web app already has 8080, list it in `runtimes.json` in the [state directory](../reference/files-and-ports.md#the-state-directory) of the machine that runs it:
+
+```json
+{"runtimes": [{"kind": "llamacpp", "port": 8181}]}
+```
+
+`kind` is one of `ollama`, `lmstudio`, `llamacpp` or `vllm`. The agent reads the file again within a few seconds of a change; no restart is needed. The default ports are still checked too. An entry only counts if the runtime there answers in its own way, so a wrong port finds nothing rather than mistaking a web app for a runtime. Jaggery always talks to runtimes on `127.0.0.1`, so the runtime can stay closed to the network.
 - `403`: the model isn't approved. See [Approve models](approve-models.md).

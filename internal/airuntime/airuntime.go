@@ -1,5 +1,6 @@
 // Package airuntime detects local AI model servers — Ollama, LM Studio,
-// llama.cpp — by probing their default ports on localhost, and reports which
+// llama.cpp, vLLM — by probing their default ports on localhost, plus any
+// the owner lists in runtimes.json (config.go), and reports which
 // models each has and which are loaded. This is what the AI router (step 7)
 // routes against: it needs to know which machine can serve a given model.
 //
@@ -28,6 +29,7 @@ const (
 	Ollama   Kind = "ollama"
 	LMStudio Kind = "lmstudio"
 	LlamaCpp Kind = "llamacpp"
+	VLLM     Kind = "vllm"
 )
 
 type Model struct {
@@ -68,36 +70,69 @@ var DefaultPorts = map[Kind]int{
 	Ollama:   11434,
 	LMStudio: 1234,
 	LlamaCpp: 8080,
+	VLLM:     8000,
+}
+
+// Kinds is every runtime Jaggery knows, in a stable order.
+var Kinds = []Kind{Ollama, LMStudio, LlamaCpp, VLLM}
+
+// Names are how each kind is written for people.
+var Names = map[Kind]string{
+	Ollama:   "Ollama",
+	LMStudio: "LM Studio",
+	LlamaCpp: "llama.cpp",
+	VLLM:     "vLLM",
 }
 
 var detectors = map[Kind]func(ctx context.Context, c *http.Client, baseURL string) ([]Model, bool){
 	Ollama:   detectOllama,
 	LMStudio: detectOpenAI,
 	LlamaCpp: detectOpenAI,
+	VLLM:     detectVLLM,
 }
 
-// Detect probes every known runtime on localhost, concurrently, and returns
-// those present.
+// Port is one place to look for a runtime of a kind.
+type Port struct {
+	Kind Kind `json:"kind"`
+	Port int  `json:"port"`
+}
+
+// Detect probes every known runtime on localhost, on its default port and
+// on the ports in runtimes.json, concurrently, and returns those present.
 func Detect(ctx context.Context) []Runtime {
-	return DetectAt(ctx, "127.0.0.1", DefaultPorts)
+	return DetectPorts(ctx, "127.0.0.1", Ports())
 }
 
 // DetectAt probes the runtimes in ports on host. Besides localhost, it is how
 // a peer checks whether a machine's runtimes answer the whole network.
 func DetectAt(ctx context.Context, host string, ports map[Kind]int) []Runtime {
+	list := make([]Port, 0, len(ports))
+	for kind, port := range ports {
+		list = append(list, Port{kind, port})
+	}
+	return DetectPorts(ctx, host, list)
+}
+
+// DetectPorts probes each kind on its port on host. A port is probed once:
+// where two entries name the same port, the first wins, so an owner's entry
+// placed first overrides a default.
+func DetectPorts(ctx context.Context, host string, ports []Port) []Runtime {
 	client := &http.Client{Timeout: 2 * time.Second}
 
 	var (
 		mu       sync.Mutex
 		runtimes []Runtime
 		wg       sync.WaitGroup
+		seen     = map[int]bool{}
 	)
-	for kind, port := range ports {
-		detect, ok := detectors[kind]
-		if !ok {
+	for _, p := range ports {
+		detect, ok := detectors[p.Kind]
+		if !ok || seen[p.Port] {
 			continue
 		}
-		baseURL := "http://" + net.JoinHostPort(host, strconv.Itoa(port))
+		seen[p.Port] = true
+		kind := p.Kind
+		baseURL := "http://" + net.JoinHostPort(host, strconv.Itoa(p.Port))
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -112,7 +147,12 @@ func DetectAt(ctx context.Context, host string, ports map[Kind]int) []Runtime {
 	}
 	wg.Wait()
 
-	sort.Slice(runtimes, func(i, j int) bool { return runtimes[i].Kind < runtimes[j].Kind })
+	sort.Slice(runtimes, func(i, j int) bool {
+		if runtimes[i].Kind != runtimes[j].Kind {
+			return runtimes[i].Kind < runtimes[j].Kind
+		}
+		return runtimes[i].Endpoint < runtimes[j].Endpoint
+	})
 	return runtimes
 }
 
@@ -251,6 +291,38 @@ func parseOpenAIModels(body []byte) ([]Model, bool) {
 		}
 	}
 	return out, true
+}
+
+// detectVLLM reads vLLM's /v1/models. The shape is OpenAI's, and its
+// default port 8000 is also common for other apps (Paperless-ngx), so it
+// counts only if the models say they are vLLM's ("owned_by": "vllm").
+func detectVLLM(ctx context.Context, c *http.Client, baseURL string) ([]Model, bool) {
+	body, ok := getJSON(ctx, c, baseURL+"/v1/models")
+	if !ok {
+		return nil, false
+	}
+	return parseVLLMModels(body)
+}
+
+func parseVLLMModels(body []byte) ([]Model, bool) {
+	models, ok := parseOpenAIModels(body)
+	if !ok {
+		return nil, false
+	}
+	var payload struct {
+		Data []struct {
+			OwnedBy string `json:"owned_by"`
+		} `json:"data"`
+	}
+	if json.Unmarshal(body, &payload) != nil {
+		return nil, false
+	}
+	for _, m := range payload.Data {
+		if m.OwnedBy == "vllm" {
+			return models, true
+		}
+	}
+	return nil, false
 }
 
 // Summary is a short human description, e.g. "ollama: 3 models (1 loaded)".

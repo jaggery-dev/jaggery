@@ -165,6 +165,8 @@ func RuntimeFix(kind airuntime.Kind, goos string) string {
 		return `in LM Studio's Developer tab, turn off "Serve on Local Network"`
 	case airuntime.LlamaCpp:
 		return "restart llama-server without --host 0.0.0.0 (it listens on 127.0.0.1 by default)"
+	case airuntime.VLLM:
+		return "restart vllm serve with --host 127.0.0.1; in Docker: publish -p 127.0.0.1:8000:8000"
 	}
 	return fmt.Sprintf("bind %s to 127.0.0.1", kind)
 }

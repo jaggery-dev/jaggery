@@ -33,7 +33,7 @@ Every agent serves the same page on port 80 (when it may) and on 7373: machines,
 
 ## `ai.local`
 
-Each agent looks for AI runtimes on its own machine (Ollama on 11434, LM Studio on 1234, llama.cpp on 8080) and reports their models. `ai.local/v1/models` lists every model in the house. A chat request goes to:
+Each agent looks for AI runtimes on its own machine (Ollama on 11434, LM Studio on 1234, llama.cpp on 8080, vLLM on 8000, and any other ports listed in `runtimes.json`) and reports their models. `ai.local/v1/models` lists every model in the house. A chat request goes to:
 
 1. a machine that already has the model loaded; otherwise
 2. among machines the model fits on (free GPU memory, or RAM), the one that has generated fastest so far, trying unmeasured machines once so they get a number.

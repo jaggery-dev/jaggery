@@ -9,7 +9,7 @@
 | 7374/tcp | approved machines | Mutual TLS between agents |
 | 5353/udp | home network | mDNS (shared with Avahi or mDNSResponder) |
 
-AI runtimes the agent looks for on its own machine: Ollama 11434, LM Studio 1234, llama.cpp 8080.
+AI runtimes the agent looks for on its own machine: Ollama 11434, LM Studio 1234, llama.cpp 8080, vLLM 8000, plus the ports in `runtimes.json`.
 
 ## The state directory
 
@@ -27,6 +27,7 @@ AI runtimes the agent looks for on its own machine: Ollama 11434, LM Studio 1234
 | `apps.json` | Apps and links added to the page from this machine, and the names given to its apps | No: `jag apps` |
 | `files/` | Shared-folder access log, a file per day (30 days) | No: `jag files log` |
 | `activity/` | Model requests, a file per day (30 days) | No: `jag activity` |
+| `runtimes.json` | AI runtimes on ports other than their defaults | **Yes**: [how-to](../how-to/use-ai-local.md#a-runtime-on-another-port) |
 | `providers.json` | Hosted model providers, caps and groups | **Yes**: [how-to](../how-to/hosted-models.md) |
 | `*.key` | Hosted providers' API keys, mode `0600` | **Yes** |
 | `hosted-spend.json` | Spend and free allowance used, per provider | No |

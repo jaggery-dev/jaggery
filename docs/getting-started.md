@@ -74,7 +74,7 @@ If the page doesn't open, run `jag doctor` on either machine. It checks multicas
 
 ## 5. Try `ai.local` (optional)
 
-If a machine runs Ollama, LM Studio or llama.cpp, its models show up house-wide:
+If a machine runs Ollama, LM Studio, llama.cpp or vLLM, its models show up house-wide:
 
 ```sh
 jag models

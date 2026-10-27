@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jaggery-dev/jaggery/internal/airuntime"
 	"github.com/jaggery-dev/jaggery/internal/discovery"
 	"github.com/jaggery-dev/jaggery/internal/home"
 	"github.com/jaggery-dev/jaggery/internal/house"
@@ -91,6 +92,7 @@ func doctor() error {
 
 	snap := loadHouse()
 	add(checkInbound(snap))
+	add(checkRuntimes(context.Background()))
 	add(checkExposure(snap))
 	add(checkClock(id, store))
 	add(checkUpdates(snap))
@@ -281,6 +283,58 @@ func checkInbound(snap house.Snapshot) checkResult {
 		return checkResult{"inbound", warn, fmt.Sprintf("%s reaches every port over IPv4, not over IPv6, so the shared names stay IPv4-only (5 s lookups on Linux)", r.CheckedBy), strings.Join(fixes6, "; ")}
 	}
 	return checkResult{"inbound", pass, fmt.Sprintf("%s reaches every port (%s ago)", r.CheckedBy, time.Since(r.CheckedAt).Round(time.Second)), ""}
+}
+
+// checkRuntimes says which AI runtimes this machine found, and where a
+// default port is taken by something else, how to point Jaggery at the
+// runtime's real port. Having no runtime is fine: it's optional.
+func checkRuntimes(ctx context.Context) checkResult {
+	if err := airuntime.ConfigError(); err != nil {
+		return checkResult{"runtimes found", warn, "ignoring " + airuntime.ConfigFile + ": " + err.Error(), "correct the file in " + stateDirOrHint() + " (see docs/how-to/use-ai-local.md)"}
+	}
+	found := airuntime.Detect(ctx)
+	var parts []string
+	onPort := map[int]bool{}
+	for _, rt := range found {
+		parts = append(parts, fmt.Sprintf("%s at %s", airuntime.Names[rt.Kind], strings.TrimPrefix(rt.Endpoint, "http://")))
+		if _, port, err := net.SplitHostPort(strings.TrimPrefix(rt.Endpoint, "http://")); err == nil {
+			p, _ := strconv.Atoi(port)
+			onPort[p] = true
+		}
+	}
+	var taken []string
+	for _, k := range airuntime.Kinds {
+		port := airuntime.DefaultPorts[k]
+		if onPort[port] || !listening(port) {
+			continue
+		}
+		taken = append(taken, fmt.Sprintf("port %d is in use by another app; to use %s on another port, add it to %s", port, airuntime.Names[k], airuntime.ConfigFile))
+	}
+	detail := "none on this machine (optional)"
+	if len(parts) > 0 {
+		detail = strings.Join(parts, ", ")
+	}
+	if len(taken) > 0 {
+		detail += "; " + strings.Join(taken, "; ")
+	}
+	return checkResult{"runtimes found", pass, detail, ""}
+}
+
+// listening reports whether anything accepts connections on a localhost port.
+func listening(port int) bool {
+	c, err := net.DialTimeout("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)), 300*time.Millisecond)
+	if err != nil {
+		return false
+	}
+	c.Close()
+	return true
+}
+
+func stateDirOrHint() string {
+	if dir, err := identity.StateDir(); err == nil {
+		return dir
+	}
+	return "the state directory"
 }
 
 func checkExposure(snap house.Snapshot) checkResult {
