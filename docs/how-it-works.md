@@ -38,7 +38,7 @@ Each agent looks for AI runtimes on its own machine (Ollama on 11434, LM Studio 
 1. a machine that already has the model loaded; otherwise
 2. among machines the model fits on (free GPU memory, or RAM), the one that has generated fastest so far, trying unmeasured machines once so they get a number.
 
-Free memory only filters; measured speed ranks. (Ranking by free memory picked a machine five times slower in testing.) The request travels to the chosen machine over mutual TLS, and that machine's agent talks to its runtime on localhost, so runtimes never need to be open to the network.
+GPU memory comes from `nvidia-smi` (NVIDIA), the `amdgpu` driver (AMD on Linux, cards with 2 GB or more of their own memory) and macOS (Apple Silicon). Free memory only filters; measured speed ranks. (Ranking by free memory picked a machine five times slower in testing.) The request travels to the chosen machine over mutual TLS, and that machine's agent talks to its runtime on localhost, so runtimes never need to be open to the network.
 
 A model that appears after Jaggery first looked waits for approval (`jag models approve`), and approval pins the model's files, so a model changed under the same name waits again. Every request is written to the activity log (`jag activity`), kept 30 days.
 
@@ -59,7 +59,7 @@ Each machine checks GitHub for a new release on its channel every 30 minutes. Wi
 ## What it can't do yet
 
 - Per-person keys: `ai.local` and the page answer anyone on your home network.
-- Windows, Android checks, NVIDIA checked on real hardware, AMD GPU detection.
+- Windows, Android checks, NVIDIA checked on a home machine, AMD GPUs on macOS.
 - Names for apps (`photos.local`), HTTPS for local names, remote access from outside the house.
 
 The plan for each is in the [roadmap](../ROADMAP.md) and [tech-specs/plan.md](../tech-specs/plan.md).

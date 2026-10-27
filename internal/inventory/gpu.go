@@ -1,9 +1,8 @@
 package inventory
 
-// GPU detection is deliberately isolated behind this one function. The MVP's
-// primary GPU target is NVIDIA via NVML, which there is no hardware to test
-// against yet (see docs/known-issues.md). Keeping detection
-// here means everything downstream — the role guess, the map, routing — is
+// GPU detection is deliberately isolated behind this one function: NVIDIA
+// from nvidia-smi, then what the platform reports (Apple Silicon, AMD on
+// Linux). Keeping detection here means everything downstream — the role guess, the map, routing — is
 // testable with GPUs faked, and a real detector drops in without touching
 // callers.
 //
