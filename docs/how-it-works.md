@@ -35,7 +35,7 @@ Every agent serves the same page on port 80 (when it may) and on 7373: machines,
 
 Each agent looks for AI runtimes on its own machine (Ollama on 11434, LM Studio on 1234, llama.cpp on 8080, vLLM on 8000, and any other ports listed in `runtimes.json`) and reports their models. `ai.local/v1/models` lists every model in the house. A chat request leaves out machines whose owner ran `jag ai pause`, then goes to:
 
-1. a machine that already has the model loaded; otherwise
+1. a machine that already has the model loaded, then one loading it for another request; otherwise
 2. among machines the model fits on (free GPU memory, or RAM), the one that has generated fastest so far, trying unmeasured machines once so they get a number.
 
 GPU memory comes from `nvidia-smi` (NVIDIA), the `amdgpu` driver (AMD on Linux, cards with 2 GB or more of their own memory) and macOS (Apple Silicon). Free memory only filters; measured speed ranks. (Ranking by free memory picked a machine five times slower in testing.) The request travels to the chosen machine over mutual TLS, and that machine's agent talks to its runtime on localhost, so runtimes never need to be open to the network.

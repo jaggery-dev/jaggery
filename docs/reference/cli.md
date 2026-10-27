@@ -133,7 +133,7 @@ again. Run it on each machine when one has left the house for good.
 ## jag models
 
 ```
-usage: jag models                         every model in the house, and whether it's approved
+usage: jag models                         every model in the house: approved, loaded, loading
        jag models approve <name> [digest]  let the router serve a model (its current files)
        jag models enforce on|off            refuse unapproved models (on), or serve every model
 

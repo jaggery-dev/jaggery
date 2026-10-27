@@ -611,7 +611,8 @@ function machineCard(m) {
     : `<div class="muted" style="margin-top:6px">No apps</div>`;
   const ms = models(m);
   const chips = ms.map(mo => mo.pending ? `<span class="chip waiting" title="Waiting for approval">${esc(mo.name)} · waiting</span>`
-    : mo.loaded ? `<span class="chip loaded" title="Loaded">${esc(mo.name)} ●</span>` : `<span class="chip">${esc(mo.name)}</span>`).join("");
+    : mo.loaded ? `<span class="chip loaded" title="Loaded">${esc(mo.name)} ●</span>`
+    : mo.loading_since ? `<span class="chip" title="Loading for a request">${esc(mo.name)} ○ loading</span>` : `<span class="chip">${esc(mo.name)}</span>`).join("");
 
   let disk = "";
   if (i.disk_total_bytes) {
@@ -650,7 +651,7 @@ function aiView(ms) {
   const rows = [];
   ms.forEach(m => models(m).forEach(mo => {
     const used = activity.filter(e => e.model === mo.name && e.status >= 200 && e.status < 300 && (!e.served_by || e.served_by === m.name)).length;
-    const st = !on(m) ? ["off", state(m) === "asleep" ? "Asleep" : "Off"] : mo.pending ? ["asleep", "Waiting for you"] : mo.loaded ? ["on", "Loaded"] : ["off", "Ready"];
+    const st = !on(m) ? ["off", state(m) === "asleep" ? "Asleep" : "Off"] : mo.pending ? ["asleep", "Waiting for you"] : mo.loaded ? ["on", "Loaded"] : mo.loading_since ? ["asleep", "Loading"] : ["off", "Ready"];
     rows.push(`<tr><td class="model">${esc(mo.name)}</td><td>${esc(m.name)}</td><td>${esc(mo.runtime)}</td>
       <td><span class="status ${st[0]}"><i aria-hidden="true"></i>${st[1]}</span></td><td class="num">${used || "–"}</td></tr>`);
   }));

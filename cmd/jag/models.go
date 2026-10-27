@@ -83,5 +83,6 @@ func addModelFacts(r *inventory.Report, now time.Time) {
 	}
 	r.ModelEvents = modelLedger.Recent(now.Add(-modelwatch.EventWindow))
 	markPending(r.Runtimes)
+	loadingNow.mark(r.Runtimes)
 	r.ToolEvents = toolSeen.recent(now)
 }

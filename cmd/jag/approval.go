@@ -126,7 +126,7 @@ func syncApprovals(ctx context.Context, id *identity.Identity, store *home.Store
 	}
 }
 
-const modelsHelp = `usage: jag models                         every model in the house, and whether it's approved
+const modelsHelp = `usage: jag models                         every model in the house: approved, loaded, loading
        jag models approve <name> [digest]  let the router serve a model (its current files)
        jag models enforce on|off            refuse unapproved models (on), or serve every model
 
@@ -169,13 +169,15 @@ func models(args []string) error {
 
 // modelJSON is one copy of a model in `jag models --json`.
 type modelJSON struct {
-	Name     string         `json:"name"`
-	Machine  string         `json:"machine"`
-	Runtime  airuntime.Kind `json:"runtime"`
-	Format   string         `json:"format,omitempty"`
-	Digest   string         `json:"digest,omitempty"`
-	Loaded   bool           `json:"loaded,omitempty"`
-	Approved bool           `json:"approved"` // the router serves it
+	Name    string         `json:"name"`
+	Machine string         `json:"machine"`
+	Runtime airuntime.Kind `json:"runtime"`
+	Format  string         `json:"format,omitempty"`
+	Digest  string         `json:"digest,omitempty"`
+	Loaded  bool           `json:"loaded,omitempty"`
+	// LoadingSince: the runtime is loading it for a request now.
+	LoadingSince *time.Time `json:"loading_since,omitempty"`
+	Approved     bool       `json:"approved"` // the router serves it
 }
 
 type houseModel struct {
@@ -209,7 +211,7 @@ func listModels() error {
 		for _, hm := range all {
 			list = append(list, modelJSON{Name: hm.model.Name, Machine: hm.machine, Runtime: hm.runtime,
 				Format: hm.model.Format, Digest: hm.model.Digest, Loaded: hm.model.Loaded,
-				Approved: a.Approved(hm.model.Name, hm.model.Digest)})
+				LoadingSince: hm.model.LoadingSince, Approved: a.Approved(hm.model.Name, hm.model.Digest)})
 		}
 		return emitJSON(map[string]any{"approval_enforced": a.Enforcing(), "models": list})
 	}
@@ -225,8 +227,8 @@ func listModels() error {
 		if !a.Approved(hm.model.Name, hm.model.Digest) {
 			state = "PENDING"
 		}
-		fmt.Printf("%-9s %-24s on %-22s %s %s %s\n", state, hm.model.Name, hm.machine, hm.runtime,
-			orUnknown(hm.model.Format), shortDigest(hm.model.Digest))
+		fmt.Printf("%-9s %-24s on %-22s %s %s %s%s\n", state, hm.model.Name, hm.machine, hm.runtime,
+			orUnknown(hm.model.Format), shortDigest(hm.model.Digest), loadState(hm.model, time.Now()))
 	}
 	return nil
 }
@@ -278,4 +280,15 @@ func approveModel(args []string) error {
 		fmt.Printf("approved %s (digest %s) on %s; the rest of the house follows within seconds\n", name, shortDigest(d), strings.Join(machines, ", "))
 	}
 	return nil
+}
+
+// loadState is "", " · loaded" or " · loading for 1m20s".
+func loadState(mo airuntime.Model, now time.Time) string {
+	switch {
+	case mo.Loaded:
+		return " · loaded"
+	case mo.LoadingSince != nil:
+		return " · loading for " + now.Sub(*mo.LoadingSince).Round(time.Second).String()
+	}
+	return ""
 }

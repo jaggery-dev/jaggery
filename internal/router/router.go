@@ -7,7 +7,8 @@
 // memory is measured to be the wrong ranking signal — it picked a node ~5x
 // slower — so it only filters, and observed tokens/sec ranks:
 //
-//  1. a machine with the model already loaded wins;
+//  1. a machine with the model already loaded wins, then one loading it for
+//     another request (a second load elsewhere would only compete);
 //  2. otherwise, machines the model fits on (free GPU memory, or RAM where
 //     there is no GPU figure); if it fits nowhere, any machine that has it,
 //     since slow beats a 404;
@@ -41,6 +42,7 @@ type Speeds interface {
 type candidate struct {
 	m        house.Machine
 	loaded   bool
+	loading  bool
 	fits     bool
 	tps      float64
 	measured bool
@@ -69,7 +71,7 @@ func Pick(machines []house.Machine, model string, speeds Speeds) (Target, bool) 
 		if !has {
 			continue
 		}
-		c := candidate{m: m, loaded: loaded, fits: fits(m, size)}
+		c := candidate{m: m, loaded: loaded, loading: machineLoading(m, model), fits: fits(m, size)}
 		if speeds != nil {
 			c.tps, c.measured = speeds.TokensPerSec(m.MachineID, model)
 		}
@@ -80,6 +82,9 @@ func Pick(machines []house.Machine, model string, speeds Speeds) (Target, bool) 
 	}
 
 	pool := filter(all, func(c candidate) bool { return c.loaded })
+	if len(pool) == 0 {
+		pool = filter(all, func(c candidate) bool { return c.loading })
+	}
 	if len(pool) == 0 {
 		pool = filter(all, func(c candidate) bool { return c.fits })
 	}
@@ -177,6 +182,19 @@ func machineHasModel(m house.Machine, model string) (loaded bool, size uint64, h
 		}
 	}
 	return loaded, size, has
+}
+
+// machineLoading reports whether a machine is loading the model for a
+// request now.
+func machineLoading(m house.Machine, model string) bool {
+	for _, rt := range m.Inventory.Runtimes {
+		for _, mo := range rt.Models {
+			if modelMatches(mo.Name, model) && mo.LoadingSince != nil {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // modelMatches accepts an exact name or the name without its ":latest" tag, so

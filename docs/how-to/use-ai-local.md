@@ -29,6 +29,12 @@ jag activity
 
 A machine that already has the model loaded; otherwise the fastest measured machine the model fits on. See [How it works](../how-it-works.md#ailocal).
 
+## A model that isn't loaded yet
+
+The first request for a model that isn't in memory waits while its runtime loads it, which can take minutes for a big model on a slow disk. Meanwhile `jag models` and the page show the model as loading, and other requests for it go to the same machine rather than loading it a second time elsewhere.
+
+A streamed request (`"stream": true`) gets its reply headers at once, then a comment line (`: loading <model> on <machine>`) every 5 seconds until the first token. Apps ignore these lines, but they stop the app's timeout from giving up on a quiet connection. If loading fails, the error arrives in the stream as a `data: {"error": …}` event, which OpenAI client libraries raise as an error. A request that isn't streamed gets nothing until the reply: give it a long timeout, or load the model first.
+
 ## Keep requests off a machine for a while
 
 The fastest machine is often the gaming PC. To keep `ai.local` off it while a game runs, on that machine:

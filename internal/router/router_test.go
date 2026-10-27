@@ -246,3 +246,20 @@ func TestPickSkipsPausedMachines(t *testing.T) {
 		t.Errorf("PausedWith after the pause ended = %v", got)
 	}
 }
+
+// A second request for a model being loaded goes where it is loading,
+// rather than starting another load on a faster machine.
+func TestPickPrefersAMachineAlreadyLoadingIt(t *testing.T) {
+	since := time.Now()
+	machines := []house.Machine{
+		machine("desktop", false, true, ollama(airuntime.Model{Name: "m"})),
+		machine("nas", true, true, ollama(airuntime.Model{Name: "m", LoadingSince: &since})),
+	}
+	speeds := NewSpeedBook()
+	speeds.Record("desktop-id", "m", 90)
+	speeds.Record("nas-id", "m", 10)
+	target, ok := Pick(machines, "m", speeds)
+	if !ok || target.Name != "nas" || target.Loaded {
+		t.Fatalf("picked %+v, want nas (loading, not loaded)", target)
+	}
+}
