@@ -8,12 +8,10 @@ import (
 	"time"
 )
 
-// probeNvidiaSMI asks nvidia-smi for each GPU's name and memory. It is written
-// without NVIDIA hardware to test against, so it is intentionally forgiving:
-// if the tool is missing or its output is unexpected, it returns nothing
-// rather than guessing. This is the one piece of the project that ships
-// unverified on real hardware; the parser is covered by a unit test against
-// captured output instead.
+// probeNvidiaSMI asks nvidia-smi for each GPU's name and memory. It is
+// forgiving: if the tool is missing or its output is unexpected, it returns
+// nothing rather than guessing. Only a cloud L4 has been tried; the parser is
+// covered by unit tests against captured and likely output.
 func probeNvidiaSMI() []GPU {
 	path, err := exec.LookPath("nvidia-smi")
 	if err != nil {
@@ -46,11 +44,14 @@ func parseNvidiaSMI(output string) []GPU {
 			continue
 		}
 		gpu := GPU{Vendor: "nvidia", Model: strings.TrimSpace(cols[0])}
-		if mib, err := strconv.ParseUint(strings.TrimSpace(cols[1]), 10, 64); err == nil {
+		if gpu.Model == "" {
+			continue
+		}
+		if mib, ok := parseMiB(cols[1]); ok {
 			gpu.MemoryBytes = mib << 20
 		}
 		if len(cols) > 2 {
-			if mib, err := strconv.ParseUint(strings.TrimSpace(cols[2]), 10, 64); err == nil {
+			if mib, ok := parseMiB(cols[2]); ok && mib<<20 <= gpu.MemoryBytes {
 				free := mib << 20
 				gpu.FreeBytes = &free
 			}
@@ -58,4 +59,12 @@ func parseNvidiaSMI(output string) []GPU {
 		gpus = append(gpus, gpu)
 	}
 	return gpus
+}
+
+// parseMiB reads one memory column: "24576", or "24576 MiB" from a driver
+// that ignores nounits. "[N/A]" and "[Not Supported]" are unknown.
+func parseMiB(col string) (uint64, bool) {
+	col = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(col), "MiB"))
+	n, err := strconv.ParseUint(col, 10, 64)
+	return n, err == nil
 }

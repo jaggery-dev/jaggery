@@ -70,8 +70,8 @@ func TestGuessRole(t *testing.T) {
 	}
 }
 
-// The nvidia-smi parser ships unverified on hardware, so the format it expects
-// is pinned here against captured output.
+// The format the nvidia-smi parser expects is pinned here against captured
+// output.
 func TestParseNvidiaSMI(t *testing.T) {
 	out := "NVIDIA GeForce RTX 3090, 24576\nNVIDIA GeForce RTX 3060, 12288\n"
 
@@ -87,6 +87,33 @@ func TestParseNvidiaSMI(t *testing.T) {
 	}
 	if gpus[1].Vendor != "nvidia" {
 		t.Errorf("vendor = %q, want nvidia", gpus[1].Vendor)
+	}
+}
+
+// Free memory is read too (the column a cloud L4 seemed to lose), and units
+// or "[N/A]" from other drivers don't break a line.
+func TestParseNvidiaSMIMemory(t *testing.T) {
+	for _, tc := range []struct {
+		in          string
+		total, free uint64
+		freeKnown   bool
+	}{
+		{"NVIDIA L4, 23034, 22322", 23034 << 20, 22322 << 20, true},
+		{"NVIDIA L4, 23034 MiB, 22322 MiB", 23034 << 20, 22322 << 20, true},
+		{"  NVIDIA L4 ,  23034 ,  22322  ", 23034 << 20, 22322 << 20, true},
+		{"NVIDIA L4, 23034, [N/A]", 23034 << 20, 0, false},
+		{"NVIDIA L4, [Not Supported], [Not Supported]", 0, 0, false},
+		{"NVIDIA L4, 23034, 99999", 23034 << 20, 0, false}, // free above total is wrong
+	} {
+		gpus := parseNvidiaSMI(tc.in + "\r\n")
+		if len(gpus) != 1 || gpus[0].Model != "NVIDIA L4" || gpus[0].MemoryBytes != tc.total {
+			t.Errorf("%q: got %+v", tc.in, gpus)
+			continue
+		}
+		g := gpus[0]
+		if (g.FreeBytes != nil) != tc.freeKnown || (g.FreeBytes != nil && *g.FreeBytes != tc.free) {
+			t.Errorf("%q: free = %v, want %d (known %v)", tc.in, g.FreeBytes, tc.free, tc.freeKnown)
+		}
 	}
 }
 

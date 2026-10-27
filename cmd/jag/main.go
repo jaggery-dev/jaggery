@@ -957,7 +957,7 @@ func printMachine(m house.Machine) {
 		fmt.Printf(" · %s/%s disk free", humanBytes(inv.DiskFreeBytes), humanBytes(inv.DiskTotalBytes))
 	}
 	for _, g := range inv.GPUs {
-		fmt.Printf(" · gpu %s %s", g.Vendor, g.Model)
+		fmt.Printf(" · gpu %s", gpuText(g))
 	}
 	fmt.Println()
 	if inv.Version != "" {
@@ -985,6 +985,22 @@ func openStore() (*home.Store, error) {
 	return home.Open(dir)
 }
 
+// gpuText is a GPU as `jag map` and `jag status` show it: "NVIDIA L4: 21.8
+// GiB free of 22.5 GiB". Memory left out is unknown, not zero.
+func gpuText(g inventory.GPU) string {
+	shared := ""
+	if g.Unified {
+		shared = ", shared with the CPU"
+	}
+	switch {
+	case g.FreeBytes != nil && g.MemoryBytes > 0:
+		return fmt.Sprintf("%s: %s free of %s%s", g.Model, humanBytes(*g.FreeBytes), humanBytes(g.MemoryBytes), shared)
+	case g.MemoryBytes > 0:
+		return fmt.Sprintf("%s (%s%s)", g.Model, humanBytes(g.MemoryBytes), shared)
+	}
+	return g.Model + " (memory unknown)"
+}
+
 func printInventory(r inventory.Report) {
 	fmt.Printf("role         %s\n", r.Role)
 	fmt.Printf("hardware     %s/%s, %d x CPU", r.OS, r.Arch, r.CPUCount)
@@ -997,15 +1013,7 @@ func printInventory(r inventory.Report) {
 		fmt.Printf("disk         %s free of %s\n", humanBytes(r.DiskFreeBytes), humanBytes(r.DiskTotalBytes))
 	}
 	for _, g := range r.GPUs {
-		shared := ""
-		if g.Unified {
-			shared = ", shared with the CPU"
-		}
-		if g.FreeBytes != nil {
-			fmt.Printf("gpu          %s: %s free of %s%s\n", g.Model, humanBytes(*g.FreeBytes), humanBytes(g.MemoryBytes), shared)
-		} else {
-			fmt.Printf("gpu          %s (%s%s)\n", g.Model, humanBytes(g.MemoryBytes), shared)
-		}
+		fmt.Printf("gpu          %s\n", gpuText(g))
 	}
 	if len(r.GPUs) == 0 {
 		fmt.Printf("gpu          none detected\n")
