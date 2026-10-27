@@ -1219,19 +1219,28 @@ func serveSecureAPI(id *identity.Identity, store *home.Store, port int) (*http.S
 	}
 
 	// An approved peer's router chose us to serve a model; run it locally.
-	mux.HandleFunc("POST /v1/infer", func(w http.ResponseWriter, r *http.Request) {
+	infer := func(w http.ResponseWriter, r *http.Request, api modelAPI) {
 		body, err := io.ReadAll(io.LimitReader(r.Body, 8<<20))
 		if err != nil {
-			writeAPIError(w, http.StatusBadRequest, "reading request")
+			api.writeError(w, http.StatusBadRequest, "reading request")
 			return
 		}
 		if p := pausedHere(); p != nil {
-			writeAPIError(w, http.StatusServiceUnavailable, fmt.Sprintf("this machine has paused AI requests %s", pauseEnd(p)))
+			api.writeError(w, http.StatusServiceUnavailable, fmt.Sprintf("this machine has paused AI requests %s", pauseEnd(p)))
 			return
 		}
-		if err := serveInfer(r.Context(), w, body); err != nil {
-			writeAPIError(w, http.StatusBadGateway, err.Error())
+		if err := serveInfer(r.Context(), w, api, body); err != nil {
+			api.writeError(w, http.StatusBadGateway, err.Error())
 		}
+	}
+	mux.HandleFunc("POST /v1/infer", func(w http.ResponseWriter, r *http.Request) { infer(w, r, apiChat) })
+	mux.HandleFunc("POST /v1/infer/{api...}", func(w http.ResponseWriter, r *http.Request) {
+		api, ok := apiByName(r.PathValue("api"))
+		if !ok {
+			http.NotFound(w, r)
+			return
+		}
+		infer(w, r, api)
 	})
 
 	listener, err := tls.Listen("tcp", fmt.Sprintf(":%d", port), tlsCfg)

@@ -291,8 +291,12 @@ func showActivity(args []string) error {
 		if len(e.Paused) > 0 {
 			tools += " · passed over " + strings.Join(e.Paused, ", ") + " (paused)"
 		}
+		model := e.Model
+		if e.API != "" {
+			model += " (" + e.API + ")"
+		}
 		fmt.Printf("%s  %-28s %-16s %s → %s · %.1fs%s%s\n", e.At.Local().Format("15:04"), trimTo(who, 28),
-			trimTo(e.App, 16), e.Model, served, float64(e.DurationMS)/1000, tokens, tools)
+			trimTo(e.App, 16), model, served, float64(e.DurationMS)/1000, tokens, tools)
 	}
 	return nil
 }

@@ -143,6 +143,7 @@ func collectInventory() inventory.Report {
 	r.ServesWeb = servesWeb.Load()
 	r.RunningSince = agentStarted
 	r.AIPaused = pausedHere()
+	r.Serves = servedAPIs()
 	if dir, err := identity.StateDir(); err == nil {
 		_, r.UpdatePending = update.LoadPending(dir)
 	}

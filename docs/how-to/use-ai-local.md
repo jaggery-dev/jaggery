@@ -10,7 +10,20 @@
 | API key | Anything, if the app insists on one. Keys aren't checked yet. |
 | Model | A name from `jag models`, e.g. `llama3.2:3b` |
 
-Works with Open WebUI, LibreChat, Continue and anything else that speaks the OpenAI chat API. Today `ai.local` serves `GET /v1/models` and `POST /v1/chat/completions` (streamed or not). Embeddings and the Ollama-native API are planned.
+Works with Open WebUI, LibreChat, Continue and anything else that speaks the OpenAI API. `ai.local` serves `GET /v1/models`, `POST /v1/chat/completions` (streamed or not) and `POST /v1/embeddings`, so apps that search your documents can use the house's embedding models too.
+
+## Apps that only speak Ollama
+
+Some apps connect to Ollama itself rather than the OpenAI API: Open WebUI's Ollama connection, Home Assistant's Ollama integration, many editor and notes plugins. Give them `http://ai.local:7373` (or `http://ai.local`) where they ask for Ollama's address, without `/v1`.
+
+| Ollama call | What `ai.local` does |
+|---|---|
+| `GET /api/tags`, `GET /api/ps` | Lists the approved models in every machine's Ollama, and which are loaded |
+| `POST /api/chat`, `/api/generate`, `/api/embed`, `/api/embeddings`, `/api/show` | Sends the request to a machine whose Ollama has the model, like chat |
+| `GET /api/version` | This machine's Ollama version, or Jaggery's if it has none |
+| `pull`, `push`, `create`, `copy`, `delete` | Refused: models change at the machine, with `ollama pull` there and `jag models approve` |
+
+Only Ollama's models are offered this way. A model in LM Studio, llama.cpp or vLLM is reached through `ai.local/v1`. Every request is in `jag activity` like chat, and a paused or unapproved model is refused with Ollama's own error shape, so the app shows why.
 
 **Apps in Docker:** `.local` names often don't resolve inside containers. Use the host's address and port 7373, e.g. `http://host.docker.internal:7373/v1` with `--add-host=host.docker.internal:host-gateway`.
 
@@ -18,6 +31,7 @@ Works with Open WebUI, LibreChat, Continue and anything else that speaks the Ope
 
 ```sh
 curl -s http://ai.local/v1/models
+curl -s http://ai.local/api/tags          # the same models, as Ollama lists them
 curl -s http://ai.local/v1/chat/completions \
   -d '{"model": "llama3.2:3b", "messages": [{"role": "user", "content": "Say hello in five words."}]}'
 jag activity

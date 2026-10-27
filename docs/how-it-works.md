@@ -38,6 +38,8 @@ Each agent looks for AI runtimes on its own machine (Ollama on 11434, LM Studio 
 1. a machine that already has the model loaded, then one loading it for another request; otherwise
 2. among machines the model fits on (free GPU memory, or RAM), the one that has generated fastest so far, trying unmeasured machines once so they get a number.
 
+Embeddings (`/v1/embeddings`) and Ollama's own API (`/api/chat`, `/api/tags` and the rest, for Ollama models) are routed the same way.
+
 GPU memory comes from `nvidia-smi` (NVIDIA), the `amdgpu` driver (AMD on Linux, cards with 2 GB or more of their own memory) and macOS (Apple Silicon). Free memory only filters; measured speed ranks. (Ranking by free memory picked a machine five times slower in testing.) The request travels to the chosen machine over mutual TLS, and that machine's agent talks to its runtime on localhost, so runtimes never need to be open to the network.
 
 A model that appears after Jaggery first looked waits for approval (`jag models approve`), and approval pins the model's files, so a model changed under the same name waits again. Every request is written to the activity log (`jag activity`), kept 30 days.

@@ -7,7 +7,7 @@ What Jaggery listens on, what it sends out, how machines come to trust each othe
 | Port | Who can reach it | What |
 |---|---|---|
 | 80 (TCP) | your home network | The page and `ai.local`, when the agent may bind it. On Linux the installer grants just that capability, not root. |
-| 7373 (TCP) | your home network | The same page, `ai.local/v1` and `ai.local/mcp`, plus what machines show each other before trust (identity, join requests). |
+| 7373 (TCP) | your home network | The same page, `ai.local/v1`, Ollama's API at `ai.local/api` and `ai.local/mcp`, plus what machines show each other before trust (identity, join requests). |
 | 7374 (TCP) | approved machines only | Mutual TLS between agents: inventory, routed model requests, shared folders, house lists, update relay. |
 | 5353 (UDP) | your home network | mDNS: finding machines, and answering for `jaggery.local`, `ai.local` and the apps' names. |
 

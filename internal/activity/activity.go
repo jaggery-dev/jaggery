@@ -38,6 +38,9 @@ type Entry struct {
 	App   string `json:"app,omitempty"`
 	User  string `json:"user,omitempty"`
 	Model string `json:"model"`
+	// API is the kind of request when it isn't OpenAI chat: "embeddings",
+	// or Ollama's own ("ollama/chat", "ollama/embed", …).
+	API string `json:"api,omitempty"`
 	// ServedBy is the machine whose runtime answered; empty if none could.
 	ServedBy string `json:"served_by,omitempty"`
 	Status   int    `json:"status"`

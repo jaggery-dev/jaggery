@@ -40,17 +40,12 @@ func registerRouter(mux *http.ServeMux, id *identity.Identity, store *home.Store
 	})
 
 	mux.HandleFunc("POST /v1/chat/completions", func(w http.ResponseWriter, r *http.Request) {
-		body, err := io.ReadAll(io.LimitReader(r.Body, 8<<20))
-		if err != nil {
-			writeAPIError(w, http.StatusBadRequest, "reading request")
+		body, ok := readModelRequest(w, r, apiChat)
+		if !ok {
 			return
 		}
-		model := modelFromBody(body)
-		if model == "" {
-			writeAPIError(w, http.StatusBadRequest, "missing model")
-			return
-		}
-		entry := activity.Entry{At: time.Now().UTC(), Model: model, Stream: streamed(body), ToolsOffered: toolsOffered(body)}
+		model := apiChat.model(body)
+		entry := activity.Entry{At: time.Now().UTC(), Model: model, Stream: apiChat.streamed(body), ToolsOffered: toolsOffered(body)}
 
 		// "<provider>/<model>" goes out of the house, through the gate.
 		providers := hostedConfig()
@@ -68,68 +63,145 @@ func registerRouter(mux *http.ServeMux, id *identity.Identity, store *home.Store
 			activityRec.record(r, entry)
 			return
 		}
+		routeModel(w, r, apiChat, body, entry, speeds, id, store)
+	})
 
-		snap := loadHouse()
-		machines := approvedOnly(withLivePause(snap.All()), approvalList)
-		entry.Paused = router.PausedWith(machines, model)
-		target, ok := router.Pick(machines, model, speeds)
+	mux.HandleFunc("POST /v1/embeddings", func(w http.ResponseWriter, r *http.Request) {
+		body, ok := readModelRequest(w, r, apiEmbeddings)
 		if !ok {
-			status, msg := http.StatusNotFound, fmt.Sprintf("no machine in the house has model %q", model)
-			if len(entry.Paused) > 0 {
-				status = http.StatusServiceUnavailable
-				msg = fmt.Sprintf("model %q is only on %s, where AI requests are paused: try again later, or run `jag ai resume` there", model, strings.Join(entry.Paused, ", "))
-			} else if _, has := router.Pick(snap.All(), model, speeds); has {
-				status = http.StatusForbidden
-				msg = fmt.Sprintf("model %q is waiting for approval: run `jag models approve %s` on any machine in the house", model, model)
-			}
-			writeAPIError(w, status, msg)
-			entry.Status = status
+			return
+		}
+		model := apiEmbeddings.model(body)
+		entry := activity.Entry{At: time.Now().UTC(), Model: model, API: apiEmbeddings.Name}
+		if _, _, ok := hostedConfig().Find(model); ok {
+			writeAPIError(w, http.StatusBadRequest, fmt.Sprintf("%s is a hosted model: ai.local sends only chat to hosted providers so far; use a model from the house for embeddings", model))
+			entry.Status = http.StatusBadRequest
 			activityRec.record(r, entry)
 			return
 		}
+		routeModel(w, r, apiEmbeddings, body, entry, speeds, id, store)
+	})
 
-		out := w
-		var waiting *waitingStream
-		if entry.Stream && !target.Loaded {
-			waiting = newWaitingStream(w, fmt.Sprintf("loading %s on %s; the first reply can take a few minutes", model, target.Name))
-			out = waiting
-		}
-		meter := newSpeedMeter(out)
-		if target.Self {
-			err = serveLocal(r.Context(), meter, model, body)
-		} else {
-			err = servePeer(r.Context(), meter, id, store, target.MachineID, body)
-		}
-		if waiting != nil {
-			waiting.finish(err)
-		}
-		entry.ServedBy = machineName(snap, target.MachineID)
-		entry.DurationMS = time.Since(meter.start).Milliseconds()
-		if err != nil {
-			if waiting == nil {
-				writeAPIError(w, http.StatusBadGateway, err.Error())
-			}
-			entry.Status = http.StatusBadGateway
-			activityRec.record(r, entry)
+	registerOllama(mux, func(w http.ResponseWriter, r *http.Request, api modelAPI) {
+		body, ok := readModelRequest(w, r, api)
+		if !ok {
 			return
 		}
-		entry.Status = meter.status
-		if entry.Status == 0 {
-			entry.Status = http.StatusOK
+		entry := activity.Entry{At: time.Now().UTC(), Model: api.model(body), API: api.Name, Stream: api.streamed(body)}
+		if api.Name == "ollama/chat" {
+			entry.ToolsOffered = toolsOffered(body)
 		}
-		entry.PromptTokens, entry.CompletionTokens, entry.Estimated = usageOf(meter)
-		entry.ToolCalls = toolCallsOf(meter)
-		activityRec.record(r, entry)
-		if tps, ok := meter.tokensPerSec(target.Loaded); ok {
-			speeds.Record(target.MachineID, model, tps)
-		}
+		routeModel(w, r, api, body, entry, speeds, id, store)
 	})
 }
 
-// serveLocal proxies a chat request to a runtime on this machine, streaming the
-// response straight back to the client.
-func serveLocal(ctx context.Context, w http.ResponseWriter, model string, body []byte) error {
-	endpoint, mo, ok := router.LocalModelFor(airuntime.Detect(ctx), model)
+// readModelRequest reads a model request's body; false when it has already
+// answered with an error.
+func readModelRequest(w http.ResponseWriter, r *http.Request, api modelAPI) ([]byte, bool) {
+	body, err := io.ReadAll(io.LimitReader(r.Body, 8<<20))
+	if err != nil {
+		api.writeError(w, http.StatusBadRequest, "reading request")
+		return nil, false
+	}
+	if api.model(body) == "" {
+		api.writeError(w, http.StatusBadRequest, "missing model")
+		return nil, false
+	}
+	return body, true
+}
+
+// routeModel sends a request for one of the house's own models to the
+// machine that should serve it, streams the reply back and logs it.
+func routeModel(w http.ResponseWriter, r *http.Request, api modelAPI, body []byte, entry activity.Entry, speeds *router.SpeedBook, id *identity.Identity, store *home.Store) {
+	model := entry.Model
+	snap := loadHouse()
+	machines := api.canServe(approvedOnly(withLivePause(snap.All()), approvalList))
+	entry.Paused = router.PausedWith(machines, model)
+	target, ok := router.Pick(machines, model, speeds)
+	if !ok {
+		status, msg := http.StatusNotFound, fmt.Sprintf("no machine in the house has model %q", model)
+		if len(entry.Paused) > 0 {
+			status = http.StatusServiceUnavailable
+			msg = fmt.Sprintf("model %q is only on %s, where AI requests are paused: try again later, or run `jag ai resume` there", model, strings.Join(entry.Paused, ", "))
+		} else if _, has := router.Pick(api.canServe(snap.All()), model, speeds); has {
+			status = http.StatusForbidden
+			msg = fmt.Sprintf("model %q is waiting for approval: run `jag models approve %s` on any machine in the house", model, model)
+		} else if why, ok := api.whyNot(approvedOnly(snap.All(), approvalList), model); ok {
+			msg = why
+		}
+		api.writeError(w, status, msg)
+		entry.Status = status
+		activityRec.record(r, entry)
+		return
+	}
+
+	out := w
+	var waiting *waitingStream
+	if api.Generates && !api.Ollama && entry.Stream && !target.Loaded {
+		waiting = newWaitingStream(w, fmt.Sprintf("loading %s on %s; the first reply can take a few minutes", model, target.Name))
+		out = waiting
+	}
+	meter := newSpeedMeter(out)
+	var err error
+	if target.Self {
+		err = serveLocal(r.Context(), meter, api, model, body)
+	} else {
+		err = servePeer(r.Context(), meter, id, store, target.MachineID, api, body)
+	}
+	if waiting != nil {
+		waiting.finish(err)
+	}
+	entry.ServedBy = machineName(snap, target.MachineID)
+	entry.DurationMS = time.Since(meter.start).Milliseconds()
+	if err != nil {
+		if waiting == nil {
+			api.writeError(w, http.StatusBadGateway, err.Error())
+		}
+		entry.Status = http.StatusBadGateway
+		activityRec.record(r, entry)
+		return
+	}
+	entry.Status = meter.status
+	if entry.Status == 0 {
+		entry.Status = http.StatusOK
+	}
+	if !api.Generates {
+		activityRec.record(r, entry)
+		return
+	}
+	if api.Ollama {
+		u, ok := ollamaUsageOf(meter)
+		if ok {
+			entry.PromptTokens, entry.CompletionTokens = u.PromptEvalCount, u.EvalCount
+		}
+		activityRec.record(r, entry)
+		if tps, ok := u.tokensPerSec(); ok && meter.status == http.StatusOK {
+			speeds.Record(target.MachineID, model, tps)
+		}
+		return
+	}
+	entry.PromptTokens, entry.CompletionTokens, entry.Estimated = usageOf(meter)
+	entry.ToolCalls = toolCallsOf(meter)
+	activityRec.record(r, entry)
+	if tps, ok := meter.tokensPerSec(target.Loaded); ok {
+		speeds.Record(target.MachineID, model, tps)
+	}
+}
+
+// serveLocal proxies a model request to a runtime on this machine, streaming
+// the response straight back to the client.
+func serveLocal(ctx context.Context, w http.ResponseWriter, api modelAPI, model string, body []byte) error {
+	runtimes := airuntime.Detect(ctx)
+	if api.Kind != "" {
+		var kept []airuntime.Runtime
+		for _, rt := range runtimes {
+			if rt.Kind == api.Kind {
+				kept = append(kept, rt)
+			}
+		}
+		runtimes = kept
+	}
+	endpoint, mo, ok := router.LocalModelFor(runtimes, model)
 	if !ok {
 		return fmt.Errorf("model %q is not on this machine after all", model)
 	}
@@ -143,12 +215,13 @@ func serveLocal(ctx context.Context, w http.ResponseWriter, model string, body [
 		defer done()
 		w = firstByte{w, done}
 	}
-	return proxyStream(ctx, w, endpoint+"/v1/chat/completions", body)
+	return proxyStream(ctx, w, endpoint+api.Path, body)
 }
 
-// servePeer forwards a chat request to a peer over mutual TLS; the peer serves
-// it from its own local runtime and streams back.
-func servePeer(ctx context.Context, w http.ResponseWriter, id *identity.Identity, store *home.Store, machineID string, body []byte) error {
+// servePeer forwards a model request to a peer over mutual TLS; the peer
+// serves it from its own local runtime and streams back. Chat goes to
+// /v1/infer, which every build serves; the rest to /v1/infer/<api>.
+func servePeer(ctx context.Context, w http.ResponseWriter, id *identity.Identity, store *home.Store, machineID string, api modelAPI, body []byte) error {
 	peer, err := store.Get(machineID)
 	if err != nil {
 		return err
@@ -162,17 +235,21 @@ func servePeer(ctx context.Context, w http.ResponseWriter, id *identity.Identity
 		return err
 	}
 	addr := net.JoinHostPort(peer.Addrs[0].String(), strconv.Itoa(discovery.SecurePort))
-	return proxyStreamWith(ctx, client, w, "https://"+addr+"/v1/infer", body)
+	path := "/v1/infer"
+	if api.Name != apiChat.Name {
+		path += "/" + api.Name
+	}
+	return proxyStreamWith(ctx, client, w, "https://"+addr+path, body)
 }
 
 // serveInfer is the peer end of servePeer: an approved machine asks us to run a
 // model, we serve it from our own local runtime. Lives on the secured listener.
-func serveInfer(ctx context.Context, w http.ResponseWriter, body []byte) error {
-	model := modelFromBody(body)
+func serveInfer(ctx context.Context, w http.ResponseWriter, api modelAPI, body []byte) error {
+	model := api.model(body)
 	if model == "" {
 		return fmt.Errorf("missing model")
 	}
-	return serveLocal(ctx, w, model, body)
+	return serveLocal(ctx, w, api, model, body)
 }
 
 func proxyStream(ctx context.Context, w http.ResponseWriter, url string, body []byte) error {
@@ -319,14 +396,6 @@ func writeAPIError(w http.ResponseWriter, status int, msg string) {
 	})
 }
 
-func streamed(body []byte) bool {
-	var req struct {
-		Stream bool `json:"stream"`
-	}
-	_ = json.Unmarshal(body, &req)
-	return req.Stream
-}
-
 func machineName(snap house.Snapshot, machineID string) string {
 	for _, m := range snap.All() {
 		if m.MachineID == machineID {
@@ -334,14 +403,6 @@ func machineName(snap house.Snapshot, machineID string) string {
 		}
 	}
 	return machineID
-}
-
-func modelFromBody(body []byte) string {
-	var req struct {
-		Model string `json:"model"`
-	}
-	_ = json.Unmarshal(body, &req)
-	return req.Model
 }
 
 // loadHouse reads the current snapshot; an empty one is fine for an agent that

@@ -100,6 +100,10 @@ type Report struct {
 	// AIPaused: the router sends this machine no AI requests while it holds.
 	// Set by the running agent.
 	AIPaused *Pause `json:"ai_paused,omitempty"`
+	// Serves are the model requests beyond chat this machine's agent serves
+	// for the house ("embeddings", "ollama/chat", …). Set by the running
+	// agent; builds from before it serve chat only.
+	Serves []string `json:"serves,omitempty"`
 	// ModelEvents are the last week's models appearing, changing or going on
 	// this machine. Set by the running agent.
 	ModelEvents []modelwatch.Event `json:"model_events,omitempty"`
