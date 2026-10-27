@@ -57,6 +57,10 @@ type Model struct {
 	// Pending: the house hasn't approved this exact model, so the router
 	// won't serve it. Set by the running agent.
 	Pending bool `json:"pending,omitempty"`
+	// LoadingSince is when the runtime started loading the model for a
+	// request that is still waiting for its first token. Set by the running
+	// agent.
+	LoadingSince *time.Time `json:"loading_since,omitempty"`
 }
 
 type Runtime struct {

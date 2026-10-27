@@ -7,7 +7,7 @@ Commands that only show something take `--json`, for scripts and agents. Without
 | `jag status --json` | this machine's name, id, fingerprint, state directory, `inventory`, `update`, `interfaces`, `ignored_interfaces` and `peers` |
 | `jag peers --json` | `peers`: id, name, trust, whether its key is verified, its fingerprint, addresses, port, `vouched_by`, `same_name` (another machine, maybe this one, uses its name), first and last seen |
 | `jag map --json` | `machines` (the house snapshot the agent writes), `name_holder` (the machine answering for jaggery.local and ai.local), `name_claims` (devices outside the house heard answering for them), `updated_at` |
-| `jag models --json` | `approval_enforced`, and `models`: each copy of a model with its machine, runtime, format, digest, whether it is loaded and whether it is approved |
+| `jag models --json` | `approval_enforced`, and `models`: each copy of a model with its machine, runtime, format, digest, whether it is loaded (or `loading_since`, while it loads for a request) and whether it is approved |
 | `jag ai --json` | `paused`, and `pause` while it holds: `since`, and `until` unless it lasts until `jag ai resume` |
 | `jag doctor --json` | `checks`: each check's `name`, `state` (`pass`, `warn` or `fail`), `detail`, and the `fix` for each check that didn't pass |
 | `jag activity [day] --json` | `day` and `entries`, the house's AI requests |

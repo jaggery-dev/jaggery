@@ -88,16 +88,27 @@ func registerRouter(mux *http.ServeMux, id *identity.Identity, store *home.Store
 			return
 		}
 
-		meter := newSpeedMeter(w)
+		out := w
+		var waiting *waitingStream
+		if entry.Stream && !target.Loaded {
+			waiting = newWaitingStream(w, fmt.Sprintf("loading %s on %s; the first reply can take a few minutes", model, target.Name))
+			out = waiting
+		}
+		meter := newSpeedMeter(out)
 		if target.Self {
 			err = serveLocal(r.Context(), meter, model, body)
 		} else {
 			err = servePeer(r.Context(), meter, id, store, target.MachineID, body)
 		}
+		if waiting != nil {
+			waiting.finish(err)
+		}
 		entry.ServedBy = machineName(snap, target.MachineID)
 		entry.DurationMS = time.Since(meter.start).Milliseconds()
 		if err != nil {
-			writeAPIError(w, http.StatusBadGateway, err.Error())
+			if waiting == nil {
+				writeAPIError(w, http.StatusBadGateway, err.Error())
+			}
 			entry.Status = http.StatusBadGateway
 			activityRec.record(r, entry)
 			return
@@ -126,6 +137,11 @@ func serveLocal(ctx context.Context, w http.ResponseWriter, model string, body [
 	// router last saw this machine's inventory.
 	if approvalList != nil && !approvalList.Approved(mo.Name, mo.Digest) {
 		return fmt.Errorf("model %q here isn't the approved one (its files changed); approve it with `jag models approve %s`", model, mo.Name)
+	}
+	if !mo.Loaded {
+		done := loadingNow.begin(mo.Name)
+		defer done()
+		w = firstByte{w, done}
 	}
 	return proxyStream(ctx, w, endpoint+"/v1/chat/completions", body)
 }
