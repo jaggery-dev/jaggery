@@ -23,7 +23,7 @@ var jsonOutput bool
 var jsonCommands = map[string]bool{
 	"status": true, "peers": true, "map": true, "models": true, "doctor": true,
 	"activity": true, "outbound": true, "share": true, "shares": true,
-	"files": true, "update": true,
+	"files": true, "update": true, "ai": true,
 }
 
 // takeJSONFlag removes --json from a command's arguments and says whether

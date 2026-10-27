@@ -19,6 +19,7 @@ package router
 import (
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/jaggery-dev/jaggery/internal/airuntime"
 	"github.com/jaggery-dev/jaggery/internal/house"
@@ -45,12 +46,23 @@ type candidate struct {
 	measured bool
 }
 
+// now is the clock pauses are judged by; tests replace it.
+var now = time.Now
+
+// usable is a machine requests can go to: this one or a reachable,
+// compatible peer.
+func usable(m house.Machine) bool {
+	return m.Self || (m.Reachable && !m.Incompatible)
+}
+
 // Pick chooses where to serve model. A machine is eligible if it is this one or
-// a reachable peer and one of its runtimes offers the model. speeds may be nil.
+// a reachable peer, it hasn't paused AI requests, and one of its runtimes
+// offers the model. speeds may be nil.
 func Pick(machines []house.Machine, model string, speeds Speeds) (Target, bool) {
 	var all []candidate
+	t := now()
 	for _, m := range machines {
-		if !m.Self && (!m.Reachable || m.Incompatible) {
+		if !usable(m) || m.Inventory.AIPaused.Active(t) {
 			continue
 		}
 		loaded, size, has := machineHasModel(m, model)
@@ -96,6 +108,23 @@ func Pick(machines []house.Machine, model string, speeds Speeds) (Target, bool) 
 		Self:      best.m.Self,
 		Loaded:    best.loaded,
 	}, true
+}
+
+// PausedWith names the machines Pick passed over for model because AI
+// requests are paused there, in order.
+func PausedWith(machines []house.Machine, model string) []string {
+	var out []string
+	t := now()
+	for _, m := range machines {
+		if !usable(m) || !m.Inventory.AIPaused.Active(t) {
+			continue
+		}
+		if _, _, has := machineHasModel(m, model); has {
+			out = append(out, m.Name)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 func filter(cs []candidate, keep func(candidate) bool) []candidate {

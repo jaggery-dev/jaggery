@@ -47,6 +47,18 @@ type GPU struct {
 	Unified bool `json:"unified,omitempty"`
 }
 
+// Pause is a machine's owner keeping AI requests off it for a while, for
+// example during a game (jag ai pause). Until is nil until resumed.
+type Pause struct {
+	Since time.Time  `json:"since"`
+	Until *time.Time `json:"until,omitempty"`
+}
+
+// Active reports whether the pause still holds at now; a nil pause doesn't.
+func (p *Pause) Active(now time.Time) bool {
+	return p != nil && (p.Until == nil || now.Before(*p.Until))
+}
+
 type Report struct {
 	// Version is the agent build, e.g. "beta.41 (9c16d76, built …)".
 	Version string `json:"version,omitempty"`
@@ -85,6 +97,9 @@ type Report struct {
 	DiskFreeBytes    uint64              `json:"disk_free_bytes"`
 	GPUs             []GPU               `json:"gpus"`
 	Runtimes         []airuntime.Runtime `json:"runtimes"`
+	// AIPaused: the router sends this machine no AI requests while it holds.
+	// Set by the running agent.
+	AIPaused *Pause `json:"ai_paused,omitempty"`
 	// ModelEvents are the last week's models appearing, changing or going on
 	// this machine. Set by the running agent.
 	ModelEvents []modelwatch.Event `json:"model_events,omitempty"`

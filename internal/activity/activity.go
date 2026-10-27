@@ -54,6 +54,9 @@ type Entry struct {
 	// carry private data, so they are never logged.
 	ToolsOffered []string `json:"tools_offered,omitempty"`
 	ToolCalls    []string `json:"tool_calls,omitempty"`
+	// Paused are machines that have the model but were passed over because
+	// their owner paused AI requests there (jag ai pause).
+	Paused []string `json:"paused,omitempty"`
 	// RoutedBy is the machine that logged it, filled in when the house's
 	// logs are gathered.
 	RoutedBy string `json:"routed_by,omitempty"`

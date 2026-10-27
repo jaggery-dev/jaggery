@@ -70,10 +70,15 @@ func registerRouter(mux *http.ServeMux, id *identity.Identity, store *home.Store
 		}
 
 		snap := loadHouse()
-		target, ok := router.Pick(approvedOnly(snap.All(), approvalList), model, speeds)
+		machines := approvedOnly(withLivePause(snap.All()), approvalList)
+		entry.Paused = router.PausedWith(machines, model)
+		target, ok := router.Pick(machines, model, speeds)
 		if !ok {
 			status, msg := http.StatusNotFound, fmt.Sprintf("no machine in the house has model %q", model)
-			if _, has := router.Pick(snap.All(), model, speeds); has {
+			if len(entry.Paused) > 0 {
+				status = http.StatusServiceUnavailable
+				msg = fmt.Sprintf("model %q is only on %s, where AI requests are paused: try again later, or run `jag ai resume` there", model, strings.Join(entry.Paused, ", "))
+			} else if _, has := router.Pick(snap.All(), model, speeds); has {
 				status = http.StatusForbidden
 				msg = fmt.Sprintf("model %q is waiting for approval: run `jag models approve %s` on any machine in the house", model, model)
 			}

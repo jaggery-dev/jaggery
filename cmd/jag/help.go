@@ -125,6 +125,8 @@ func helpFor(cmd string) (string, bool) {
 		return forgetHelp, true
 	case "models":
 		return modelsHelp, true
+	case "ai":
+		return aiHelp, true
 	case "doctor":
 		return doctorHelp, true
 	case "activity":

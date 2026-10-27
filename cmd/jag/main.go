@@ -54,6 +54,7 @@ usage:
   jag ping <id>       reach an approved peer over mutual TLS
   jag forget <id>     remove a peer from this machine's list
   jag models          every model in the house; approve new ones (jag models approve <name>)
+  jag ai pause        send AI requests to other machines for a while (jag ai resume)
   jag doctor          check this machine and its network, and say how to fix what fails
   jag activity [day]  who used which AI model, on which machine (default today)
   jag outbound [day]  what left the house for hosted models (jag outbound show <id>)
@@ -134,6 +135,8 @@ func run(cmd string, args []string) error {
 		err = forget(args)
 	case "models":
 		err = models(args)
+	case "ai":
+		err = aiCmd(args)
 	case "doctor":
 		err = doctor()
 	case "activity":
@@ -960,6 +963,9 @@ func printMachine(m house.Machine) {
 		fmt.Printf(" · gpu %s", gpuText(g))
 	}
 	fmt.Println()
+	if p := inv.AIPaused; p.Active(time.Now()) {
+		fmt.Printf("    AI requests paused %s\n", pauseEnd(p))
+	}
 	if inv.Version != "" {
 		fmt.Printf("    jag %s\n", inv.Version)
 	}
@@ -1217,6 +1223,10 @@ func serveSecureAPI(id *identity.Identity, store *home.Store, port int) (*http.S
 		body, err := io.ReadAll(io.LimitReader(r.Body, 8<<20))
 		if err != nil {
 			writeAPIError(w, http.StatusBadRequest, "reading request")
+			return
+		}
+		if p := pausedHere(); p != nil {
+			writeAPIError(w, http.StatusServiceUnavailable, fmt.Sprintf("this machine has paused AI requests %s", pauseEnd(p)))
 			return
 		}
 		if err := serveInfer(r.Context(), w, body); err != nil {

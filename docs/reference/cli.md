@@ -18,6 +18,7 @@ usage:
   jag ping <id>       reach an approved peer over mutual TLS
   jag forget <id>     remove a peer from this machine's list
   jag models          every model in the house; approve new ones (jag models approve <name>)
+  jag ai pause        send AI requests to other machines for a while (jag ai resume)
   jag doctor          check this machine and its network, and say how to fix what fails
   jag activity [day]  who used which AI model, on which machine (default today)
   jag outbound [day]  what left the house for hosted models (jag outbound show <id>)
