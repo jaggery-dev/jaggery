@@ -42,7 +42,7 @@ cat <<EOF
 Promote $candidate ($commit) to prod as v$release.
 
 Gates (tech-specs/releases.md); confirm each yourself:
-  1. Soak: this commit has run on every house machine for 48 hours,
+  1. Soak: this commit has run on every house machine for 8 hours,
      with no rollback and no machine marking it bad.
   2. Every slice in the release met its done-when on real machines.
   3. A machine on ${prev:-the current prod} updated to it, and rolled back with its state intact.
